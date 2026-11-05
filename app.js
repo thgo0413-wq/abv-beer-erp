@@ -22,11 +22,21 @@ try {
   data = {};
 }
 
-if (!data || typeof data !== "object") data = {};
+if (!data || typeof data !== "object" || Array.isArray(data)) {
+  data = {};
+}
 
-data.stock ||= {};
-data.products ||= [];
-data.orders ||= {};
+if (!data.stock || typeof data.stock !== "object") {
+  data.stock = {};
+}
+
+if (!Array.isArray(data.products)) {
+  data.products = [];
+}
+
+if (!data.orders || typeof data.orders !== "object") {
+  data.orders = {};
+}
 
 data.products.forEach(p => {
   if (!p.location) p.location = "none";
@@ -37,17 +47,16 @@ function save() {
 }
 
 function id() {
-  return Date.now().toString(36) +
-    Math.random().toString(36).slice(2);
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
 function safe(value) {
   return String(value ?? "").replace(/[&<>"']/g, c => ({
-    "&":"&amp;",
-    "<":"&lt;",
-    ">":"&gt;",
-    '"':"&quot;",
-    "'":"&#39;"
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
   })[c]);
 }
 
@@ -62,6 +71,7 @@ function typeOptions() {
 }
 
 document.querySelector("#productType").innerHTML = typeOptions();
+
 document.querySelector("#filterType").innerHTML += typeOptions();
 
 
@@ -71,13 +81,13 @@ document.querySelector("#filterType").innerHTML += typeOptions();
 
 document.querySelectorAll(".tab").forEach(button => {
   button.onclick = () => {
-    document.querySelectorAll(".tab").forEach(b =>
-      b.classList.remove("active")
-    );
+    document.querySelectorAll(".tab").forEach(b => {
+      b.classList.remove("active");
+    });
 
-    document.querySelectorAll(".page").forEach(p =>
-      p.classList.remove("active")
-    );
+    document.querySelectorAll(".page").forEach(p => {
+      p.classList.remove("active");
+    });
 
     button.classList.add("active");
 
@@ -96,15 +106,14 @@ document.querySelectorAll(".tab").forEach(button => {
 
 function renderStock() {
   const tbody = document.querySelector("#stockTable");
-
-  // 隱藏目標欄，只保留類型、冰箱、櫃子
-  const headerRow = tbody.closest("table")?.querySelector("thead tr");
+  const headerRow = tbody.closest("table")
+    ?.querySelector("thead tr");
 
   if (headerRow) {
     headerRow.innerHTML = `
       <th>啤酒類型</th>
-      <th>冰箱現有（排）</th>
-      <th>櫃子現有（排）</th>
+      <th>冰箱現有<br>（排）</th>
+      <th>櫃子現有<br>（排）</th>
     `;
   }
 
@@ -119,13 +128,23 @@ function renderStock() {
         <td>${safe(type)}</td>
 
         <td>
-          <input class="fridge" type="number" min="0"
-            value="${num(stock.fridge)}">
+          <input
+            class="fridge"
+            type="number"
+            min="0"
+            inputmode="numeric"
+            value="${num(stock.fridge)}"
+          >
         </td>
 
         <td>
-          <input class="cabinet" type="number" min="0"
-            value="${num(stock.cabinet)}">
+          <input
+            class="cabinet"
+            type="number"
+            min="0"
+            inputmode="numeric"
+            value="${num(stock.cabinet)}"
+          >
         </td>
       </tr>
     `;
@@ -134,16 +153,16 @@ function renderStock() {
 
 document.querySelector("#saveStock").onclick = () => {
   document.querySelectorAll("#stockTable tr").forEach(row => {
-    const type = row.dataset.type;
-
-    data.stock[type] = {
+    data.stock[row.dataset.type] = {
       fridge: num(row.querySelector(".fridge").value),
       cabinet: num(row.querySelector(".cabinet").value)
     };
   });
 
   save();
+
   alert("庫存已儲存");
+
   renderOrders();
 };
 
@@ -154,6 +173,7 @@ document.querySelector("#saveStock").onclick = () => {
 
 document.querySelector("#addVendor").onclick = () => {
   const input = document.createElement("input");
+
   input.className = "vendor";
   input.placeholder = "供應商名稱";
   input.required = true;
@@ -169,12 +189,16 @@ document.querySelector("#addVendor").onclick = () => {
 document.querySelector("#addForm").onsubmit = event => {
   event.preventDefault();
 
-  const name = document.querySelector("#productName").value.trim();
+  const name = document.querySelector("#productName")
+    .value.trim();
+
   const type = document.querySelector("#productType").value;
 
   const vendors = [
     ...document.querySelectorAll(".vendor")
-  ].map(input => input.value.trim()).filter(Boolean);
+  ]
+    .map(input => input.value.trim())
+    .filter(Boolean);
 
   if (!name || !vendors.length) {
     alert("請填寫商品名稱與供應商");
@@ -229,7 +253,7 @@ function renderProducts() {
     (
       (p.name || "").toLowerCase().includes(keyword) ||
       (p.vendors || []).some(v =>
-        v.toLowerCase().includes(keyword)
+        String(v).toLowerCase().includes(keyword)
       )
     )
   );
@@ -247,25 +271,24 @@ function renderProducts() {
         <h3>${safe(p.name)}</h3>
 
         <p>類型：${safe(p.type)}</p>
+
         <p>供應商：${safe((p.vendors || []).join("、"))}</p>
 
         <label>是否有貨</label>
 
-        <select class="productLocation"
-          data-product-id="${safe(p.id)}">
-
-          <option value="none"
-            ${location === "none" ? "selected" : ""}>
+        <select
+          class="productLocation"
+          data-product-id="${safe(p.id)}"
+        >
+          <option value="none" ${location === "none" ? "selected" : ""}>
             無
           </option>
 
-          <option value="fridge"
-            ${location === "fridge" ? "selected" : ""}>
+          <option value="fridge" ${location === "fridge" ? "selected" : ""}>
             冰箱
           </option>
 
-          <option value="cabinet"
-            ${location === "cabinet" ? "selected" : ""}>
+          <option value="cabinet" ${location === "cabinet" ? "selected" : ""}>
             櫃子
           </option>
         </select>
@@ -292,6 +315,7 @@ function renderProducts() {
       product.location = select.value;
 
       save();
+
       renderProducts();
       renderOrders();
     };
@@ -299,6 +323,7 @@ function renderProducts() {
 }
 
 document.querySelector("#searchProduct").oninput = renderProducts;
+
 document.querySelector("#filterType").onchange = renderProducts;
 
 
@@ -308,6 +333,7 @@ document.querySelector("#filterType").onchange = renderProducts;
 
 function editVendors(productId) {
   const product = data.products.find(p => p.id === productId);
+
   if (!product) return;
 
   const result = prompt(
@@ -317,11 +343,16 @@ function editVendors(productId) {
 
   if (result === null) return;
 
-  product.vendors = [...new Set(
-    result.split(/[,，]/).map(v => v.trim()).filter(Boolean)
-  )];
+  product.vendors = [
+    ...new Set(
+      result.split(/[,，]/)
+        .map(v => v.trim())
+        .filter(Boolean)
+    )
+  ];
 
   save();
+
   renderProducts();
   renderOrders();
 }
@@ -333,12 +364,14 @@ function editVendors(productId) {
 
 function disableProduct(productId) {
   const product = data.products.find(p => p.id === productId);
+
   if (!product) return;
 
   if (confirm("確定停用這個商品？")) {
     product.active = false;
 
     save();
+
     renderProducts();
     renderOrders();
   }
@@ -363,9 +396,11 @@ function getAvailableProducts() {
 
 function renderOrders() {
   const container = document.querySelector("#orderList");
+
   if (!container) return;
 
   const available = getAvailableProducts();
+
   const html = [];
 
   TYPES.forEach(([type, fridgeTarget, cabinetTarget]) => {
@@ -374,7 +409,6 @@ function renderOrders() {
       cabinet: 0
     };
 
-    // 計算冰箱及櫃子的缺口
     const fridgeDeficit = Math.max(
       0,
       fridgeTarget - num(stock.fridge)
@@ -385,21 +419,16 @@ function renderOrders() {
       cabinetTarget - num(stock.cabinet)
     );
 
-    // 總建議叫貨排數
     const totalDeficit = fridgeDeficit + cabinetDeficit;
 
     const products = available.filter(p => p.type === type);
 
-    // 沒有可叫貨商品就不顯示
     if (!products.length) return;
 
-    // 依供應商分組
     const vendorGroups = {};
 
     products.forEach(product => {
-      const vendors = [...new Set(product.vendors || [])];
-
-      vendors.forEach(vendor => {
+      [...new Set(product.vendors || [])].forEach(vendor => {
         if (!vendorGroups[vendor]) {
           vendorGroups[vendor] = [];
         }
@@ -413,18 +442,18 @@ function renderOrders() {
       .map(vendor => `
         <div class="vendorGroup">
           <strong>${safe(vendor)}</strong>
-          <p>${vendorGroups[vendor].map(name => safe(name)).join("、")}</p>
+          <p>
+            ${vendorGroups[vendor]
+              .map(name => safe(name))
+              .join("、")}
+          </p>
         </div>
       `).join("");
 
     html.push(`
       <div class="card">
         <h3>${safe(type)}</h3>
-
-        <p>
-          需叫 ${totalDeficit} 排
-        </p>
-
+        <p>需叫 ${totalDeficit} 排</p>
         ${vendorHtml}
       </div>
     `);
@@ -437,7 +466,7 @@ function renderOrders() {
 
 
 // ==============================
-// 匯出可叫貨品項
+// 匯出可叫貨品項 CSV
 // ==============================
 
 document.querySelector("#exportOrders").onclick = () => {
@@ -457,20 +486,18 @@ document.querySelector("#exportOrders").onclick = () => {
       Math.max(0, fridgeTarget - num(stock.fridge)) +
       Math.max(0, cabinetTarget - num(stock.cabinet));
 
-    const products = available.filter(p => p.type === type);
-
-    products.forEach(product => {
-      const vendors = [...new Set(product.vendors || [])];
-
-      vendors.forEach(vendor => {
-        rows.push([
-          type,
-          totalDeficit,
-          vendor,
-          product.name
-        ]);
+    available
+      .filter(p => p.type === type)
+      .forEach(product => {
+        [...new Set(product.vendors || [])].forEach(vendor => {
+          rows.push([
+            type,
+            totalDeficit,
+            vendor,
+            product.name
+          ]);
+        });
       });
-    });
   });
 
   if (rows.length === 1) {
@@ -484,44 +511,25 @@ document.querySelector("#exportOrders").onclick = () => {
     ).join(",")
   ).join("\r\n");
 
-  const blob = new Blob([csv], {
-    type: "text/csv;charset=utf-8"
-  });
+  const blob = new Blob(
+    [csv],
+    { type: "text/csv;charset=utf-8" }
+  );
+
+  const url = URL.createObjectURL(blob);
 
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
+  link.href = url;
   link.download = "可叫貨品項清單.csv";
   link.click();
 
-  URL.revokeObjectURL(link.href);
+  URL.revokeObjectURL(url);
 };
-
-// ==============================
-// 更新匯出按鈕文字
-// ==============================
-
-document.querySelector("#exportOrders").textContent =
-  "匯出可叫貨品項";
 
 
 // ==============================
 // 商品清單匯出／匯入
 // ==============================
-
-const importButtons = document.createElement("div");
-importButtons.style.display = "flex";
-importButtons.style.flexWrap = "wrap";
-importButtons.style.justifyContent = "center";
-importButtons.style.gap = "8px";
-importButtons.style.margin = "12px 0";
-
-importButtons.innerHTML = `
-  <button id="exportProducts">匯出商品清單</button>
-  <button id="importProducts">匯入商品清單</button>
-`;
-
-const footer = document.querySelector("footer");
-footer.insertBefore(importButtons, footer.querySelector("p"));
 
 function downloadJSON(content, filename) {
   const blob = new Blob(
@@ -529,16 +537,19 @@ function downloadJSON(content, filename) {
     { type: "application/json" }
   );
 
+  const url = URL.createObjectURL(blob);
+
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
+  link.href = url;
   link.download = filename;
   link.click();
 
-  URL.revokeObjectURL(link.href);
+  URL.revokeObjectURL(url);
 }
 
 function chooseJSONFile(callback) {
   const input = document.createElement("input");
+
   input.type = "file";
   input.accept = ".json,application/json";
   input.style.display = "none";
@@ -547,14 +558,14 @@ function chooseJSONFile(callback) {
 
   input.onchange = async () => {
     const file = input.files[0];
+
     if (!file) {
       input.remove();
       return;
     }
 
     try {
-      const parsed = JSON.parse(await file.text());
-      callback(parsed);
+      callback(JSON.parse(await file.text()));
     } catch (error) {
       alert("檔案讀取失敗，請確認是否為正確的商品清單。");
     } finally {
@@ -565,18 +576,23 @@ function chooseJSONFile(callback) {
   input.click();
 }
 
-// 匯出商品清單
-document.querySelector("#exportProducts").onclick = () => {
-  const productList = {
-    format: "abv-product-list",
-    version: 1,
-    products: data.products
-  };
 
-  downloadJSON(productList, "ABV商品清單.json");
+// 匯出商品清單
+
+document.querySelector("#exportProducts").onclick = () => {
+  downloadJSON(
+    {
+      format: "abv-product-list",
+      version: 1,
+      products: data.products
+    },
+    "ABV商品清單.json"
+  );
 };
 
+
 // 匯入商品清單
+
 document.querySelector("#importProducts").onclick = () => {
   chooseJSONFile(parsed => {
     const products = Array.isArray(parsed)
@@ -590,7 +606,8 @@ document.querySelector("#importProducts").onclick = () => {
         typeof p === "object" &&
         typeof p.name === "string" &&
         typeof p.type === "string" &&
-        Array.isArray(p.vendors)
+        Array.isArray(p.vendors) &&
+        p.vendors.every(v => typeof v === "string")
       )
     ) {
       alert("商品清單格式不正確，無法匯入。");
@@ -599,18 +616,25 @@ document.querySelector("#importProducts").onclick = () => {
 
     if (!confirm(
       `即將匯入 ${products.length} 項商品，並取代目前的商品清單。\n\n庫存數量不會受到影響，匯入商品會預設為無貨。\n\n確定繼續嗎？`
-    )) return;
+    )) {
+      return;
+    }
 
     data.products = products.map(p => ({
       id: p.id || id(),
       name: p.name,
       type: p.type,
-      vendors: [...new Set(p.vendors.map(v => String(v).trim()).filter(Boolean))],
+      vendors: [
+        ...new Set(
+          p.vendors.map(v => v.trim()).filter(Boolean)
+        )
+      ],
       active: p.active !== false,
       location: "none"
     }));
 
     save();
+
     renderProducts();
     renderOrders();
 
