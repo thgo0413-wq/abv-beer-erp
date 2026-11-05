@@ -8,40 +8,27 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
 <header>
   <h1>ABV 啤酒庫存與叫貨系統</h1>
   <p>庫存盤點・商品管理・叫貨建議</p>
 </header>
-
 <nav>
   <button class="tab active" data-page="stock">庫存盤點</button>
   <button class="tab" data-page="products">商品資料</button>
   <button class="tab" data-page="orders">叫貨建議</button>
   <button class="tab" data-page="add">新增商品</button>
+  <button class="tab" data-page="bulkImport">批次匯入</button>
 </nav>
-
 <main>
-
   <section id="stock" class="page active">
     <h2>庫存盤點</h2>
     <p>輸入冰箱及櫃子的實際庫存數量。</p>
-
     <div class="table-wrap">
       <table id="stockInventoryTable">
-        <thead>
-          <tr>
-            <th>啤酒類型</th>
-            <th>冰箱現有</th>
-            <th>冰箱目標</th>
-            <th>櫃子現有</th>
-            <th>櫃子目標</th>
-          </tr>
-        </thead>
+        <thead><tr><th>啤酒類型</th><th>冰箱現有</th><th>冰箱目標</th><th>櫃子現有</th><th>櫃子目標</th></tr></thead>
         <tbody id="stockTable"></tbody>
       </table>
     </div>
-
     <button id="saveStock">儲存庫存</button>
   </section>
 
@@ -61,37 +48,48 @@
     <button id="exportOrders">匯出可叫貨品項</button>
   </section>
 
+  <section id="bulkImport" class="page">
+    <h2>批次匯入商品</h2>
+    <p>從供應商網站複製商品清單，貼上後逐筆檢查名稱與分類；確認前不會寫入商品資料。</p>
+    <div class="bulk-source card">
+      <label for="bulkSupplier">供應商名稱</label>
+      <input id="bulkSupplier" placeholder="例如：供應商 A">
+      <label for="bulkText">供應商商品資料</label>
+      <textarea id="bulkText" rows="8" placeholder="將從供應商網站複製的商品清單貼在這裡"></textarea>
+      <button id="parseBulk">整理並檢視商品</button>
+      <p class="muted">目前先支援複製貼上的文字／表格內容。容量與價格會忽略。</p>
+    </div>
+    <div id="bulkReview"></div>
+    <div id="bulkConfirmArea" class="bulk-confirm" hidden>
+      <p id="bulkCount"></p>
+      <button id="confirmBulk">確認匯入所選商品</button>
+      <button id="cancelBulk" class="secondary">取消檢視</button>
+    </div>
+  </section>
+
   <section id="add" class="page">
     <h2>新增商品</h2>
-
     <form id="addForm">
       <label for="productName">商品名稱</label>
       <input id="productName" required placeholder="輸入商品名稱">
-
       <label for="productType">啤酒類型</label>
       <select id="productType" required></select>
-
       <label>供應商</label>
       <div id="vendorInputs">
         <input class="vendor" required placeholder="供應商名稱">
       </div>
-
       <button type="button" id="addVendor">＋ 新增供應商</button>
       <button type="submit">新增商品</button>
     </form>
   </section>
-
 </main>
-
 <footer>
   <div id="productTransferButtons" class="transfer-buttons">
     <button id="exportProducts">匯出商品清單</button>
     <button id="importProducts">匯入商品清單</button>
   </div>
-  <p>資料儲存在目前裝置的瀏覽器中。</p>
+  <p>商品、庫存與分類學習紀錄儲存在目前裝置的瀏覽器中。</p>
 </footer>
-
 <script src="app.js"></script>
-
 </body>
 </html>
