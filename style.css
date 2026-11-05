@@ -1,0 +1,174 @@
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, "Noto Sans TC", sans-serif;
+  background: #f3f5f7;
+  color: #263238;
+}
+
+header {
+  background: #18384b;
+  color: white;
+  padding: 25px 20px;
+  text-align: center;
+}
+
+header h1 {
+  margin: 0 0 8px;
+}
+
+header p {
+  margin: 0;
+  color: #d2e0e8;
+}
+
+nav {
+  display: flex;
+  overflow-x: auto;
+  background: white;
+  padding: 10px;
+  gap: 8px;
+  justify-content: center;
+}
+
+button {
+  padding: 11px 16px;
+  border: none;
+  border-radius: 7px;
+  background: #24566f;
+  color: white;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+button:hover {
+  opacity: 0.85;
+}
+
+.tab {
+  background: #e5ebef;
+  color: #263238;
+}
+
+.tab.active {
+  background: #24566f;
+  color: white;
+}
+
+main {
+  max-width: 1100px;
+  margin: 25px auto;
+  padding: 0 15px;
+  min-height: 60vh;
+}
+
+.page {
+  display: none;
+}
+
+.page.active {
+  display: block;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid #ccd4da;
+  border-radius: 6px;
+  margin: 6px 0 12px;
+  font-size: 15px;
+  background: white;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  background: white;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+th,
+td {
+  padding: 12px;
+  border-bottom: 1px solid #e5e9ec;
+  text-align: center;
+}
+
+th {
+  background: #eaf0f3;
+}
+
+td input {
+  min-width: 75px;
+  margin: 0;
+}
+
+#productList,
+#orderList {
+  margin-top: 18px;
+}
+
+.card {
+  background: white;
+  border-radius: 9px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid #e1e6ea;
+}
+
+.card h3 {
+  margin-top: 0;
+}
+
+.card select,
+.card input {
+  margin-top: 8px;
+}
+
+form {
+  background: white;
+  padding: 20px;
+  border-radius: 9px;
+  max-width: 600px;
+}
+
+form label {
+  display: block;
+  font-weight: bold;
+}
+
+footer {
+  text-align: center;
+  padding: 20px;
+  color: #77838b;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  nav {
+    justify-content: flex-start;
+  }
+
+  header h1 {
+    font-size: 23px;
+  }
+
+  main {
+    margin-top: 18px;
+  }
+}
