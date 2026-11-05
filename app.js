@@ -496,26 +496,6 @@ document.querySelector("#exportOrders").onclick = () => {
   URL.revokeObjectURL(link.href);
 };
 
-
-// ==============================
-// 匯出 JSON 備份
-// ==============================
-
-document.querySelector("#backup").onclick = () => {
-  const blob = new Blob(
-    [JSON.stringify(data, null, 2)],
-    {type: "application/json"}
-  );
-
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "啤酒系統備份.json";
-  link.click();
-
-  URL.revokeObjectURL(link.href);
-};
-
-
 // ==============================
 // 更新匯出按鈕文字
 // ==============================
