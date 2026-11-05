@@ -525,6 +525,121 @@ document.querySelector("#exportOrders").textContent =
 
 
 // ==============================
+// 商品清單匯出／匯入
+// ==============================
+
+const importButtons = document.createElement("div");
+importButtons.style.display = "flex";
+importButtons.style.flexWrap = "wrap";
+importButtons.style.justifyContent = "center";
+importButtons.style.gap = "8px";
+importButtons.style.margin = "12px 0";
+
+importButtons.innerHTML = `
+  <button id="exportProducts">匯出商品清單</button>
+  <button id="importProducts">匯入商品清單</button>
+`;
+
+const footer = document.querySelector("footer");
+footer.insertBefore(importButtons, footer.querySelector("p"));
+
+function downloadJSON(content, filename) {
+  const blob = new Blob(
+    [JSON.stringify(content, null, 2)],
+    { type: "application/json" }
+  );
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+
+  URL.revokeObjectURL(link.href);
+}
+
+function chooseJSONFile(callback) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json,application/json";
+  input.style.display = "none";
+
+  document.body.appendChild(input);
+
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) {
+      input.remove();
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(await file.text());
+      callback(parsed);
+    } catch (error) {
+      alert("檔案讀取失敗，請確認是否為正確的商品清單。");
+    } finally {
+      input.remove();
+    }
+  };
+
+  input.click();
+}
+
+// 匯出商品清單
+document.querySelector("#exportProducts").onclick = () => {
+  const productList = {
+    format: "abv-product-list",
+    version: 1,
+    products: data.products
+  };
+
+  downloadJSON(productList, "ABV商品清單.json");
+};
+
+// 匯入商品清單
+document.querySelector("#importProducts").onclick = () => {
+  chooseJSONFile(parsed => {
+    const products = Array.isArray(parsed)
+      ? parsed
+      : parsed?.products;
+
+    if (
+      !Array.isArray(products) ||
+      !products.every(p =>
+        p &&
+        typeof p === "object" &&
+        typeof p.name === "string" &&
+        typeof p.type === "string" &&
+        Array.isArray(p.vendors)
+      )
+    ) {
+      alert("商品清單格式不正確，無法匯入。");
+      return;
+    }
+
+    if (!confirm(
+      `即將匯入 ${products.length} 項商品，並取代目前的商品清單。\n\n庫存數量不會受到影響，匯入商品會預設為無貨。\n\n確定繼續嗎？`
+    )) return;
+
+    data.products = products.map(p => ({
+      id: p.id || id(),
+      name: p.name,
+      type: p.type,
+      vendors: [...new Set(p.vendors.map(v => String(v).trim()).filter(Boolean))],
+      active: p.active !== false,
+      location: "none"
+    }));
+
+    save();
+    renderProducts();
+    renderOrders();
+
+    alert(`成功匯入 ${products.length} 項商品！`);
+  });
+};
+
+
+// ==============================
 // 啟動網站
 // ==============================
 
