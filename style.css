@@ -46,12 +46,13 @@ button {
 }
 
 button:hover {
-  opacity: 0.85;
+  opacity: .85;
 }
 
 .tab {
   background: #e5ebef;
   color: #263238;
+  white-space: nowrap;
 }
 
 .tab.active {
@@ -159,23 +160,32 @@ footer {
   font-size: 13px;
 }
 
-@media (max-width: 600px) {
-  nav {
-    justify-content: flex-start;
-  }
-
-  header h1 {
-    font-size: 23px;
-  }
-
-  main {
-    margin-top: 18px;
-  }
+.transfer-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px 0;
 }
 
-/* 第一頁：手機版庫存表格完整顯示 */
+.vendorGroup {
+  border-top: 1px solid #e5e9ec;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.vendorGroup p {
+  margin-bottom: 0;
+}
+
+/* =========================
+   第一頁：庫存表格手機版排版
+   固定三欄，不需要左右滑動
+   ========================= */
+
 #stock .table-wrap {
   overflow-x: hidden;
+  width: 100%;
 }
 
 #stock table {
@@ -187,11 +197,11 @@ footer {
 
 #stock table th,
 #stock table td {
-  padding: 8px 3px;
+  padding: 9px 3px;
   font-size: 13px;
   text-align: center;
   white-space: normal;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 #stock table th:nth-child(1),
@@ -209,7 +219,7 @@ footer {
 #stock table td input.fridge,
 #stock table td input.cabinet {
   display: block;
-  width: 52px;
+  width: 50px;
   min-width: 0;
   max-width: 100%;
   margin: 2px auto;
@@ -218,16 +228,42 @@ footer {
   font-size: 15px;
 }
 
-@media (max-width: 380px) {
+@media (max-width: 600px) {
+  nav {
+    justify-content: flex-start;
+  }
+
+  header h1 {
+    font-size: 23px;
+  }
+
+  main {
+    margin-top: 18px;
+  }
+
   #stock table th,
   #stock table td {
-    padding: 7px 2px;
+    padding: 8px 2px;
     font-size: 12px;
   }
 
   #stock table td input.fridge,
   #stock table td input.cabinet {
     width: 46px;
+    font-size: 14px;
   }
 }
 
+@media (max-width: 380px) {
+  #stock table th,
+  #stock table td {
+    padding: 6px 1px;
+    font-size: 11px;
+  }
+
+  #stock table td input.fridge,
+  #stock table td input.cabinet {
+    width: 40px;
+    padding: 6px 1px;
+  }
+}
