@@ -172,3 +172,14 @@ footer {
     margin-top: 18px;
   }
 }
+
+/* 第一頁：縮小庫存數量輸入框 */
+#stockTable td input.fridge,
+#stockTable td input.cabinet {
+  width: 64px;
+  min-width: 64px;
+  max-width: 64px;
+  padding: 8px 4px;
+  text-align: center;
+  margin: 0 auto;
+}
