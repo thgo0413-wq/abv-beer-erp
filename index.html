@@ -22,11 +22,13 @@
 </nav>
 
 <main>
+
   <section id="stock" class="page active">
     <h2>庫存盤點</h2>
     <p>輸入冰箱及櫃子的實際庫存數量。</p>
+
     <div class="table-wrap">
-      <table>
+      <table id="stockInventoryTable">
         <thead>
           <tr>
             <th>啤酒類型</th>
@@ -39,6 +41,7 @@
         <tbody id="stockTable"></tbody>
       </table>
     </div>
+
     <button id="saveStock">儲存庫存</button>
   </section>
 
@@ -55,16 +58,17 @@
     <h2>叫貨建議</h2>
     <p>依庫存缺口計算叫貨量，由員工自行選擇商品與供應商。</p>
     <div id="orderList"></div>
-    <button id="exportOrders">匯出叫貨清單</button>
+    <button id="exportOrders">匯出可叫貨品項</button>
   </section>
 
   <section id="add" class="page">
     <h2>新增商品</h2>
+
     <form id="addForm">
-      <label>商品名稱</label>
+      <label for="productName">商品名稱</label>
       <input id="productName" required placeholder="輸入商品名稱">
 
-      <label>啤酒類型</label>
+      <label for="productType">啤酒類型</label>
       <select id="productType" required></select>
 
       <label>供應商</label>
@@ -76,12 +80,18 @@
       <button type="submit">新增商品</button>
     </form>
   </section>
+
 </main>
 
 <footer>
+  <div id="productTransferButtons" class="transfer-buttons">
+    <button id="exportProducts">匯出商品清單</button>
+    <button id="importProducts">匯入商品清單</button>
+  </div>
   <p>資料儲存在目前裝置的瀏覽器中。</p>
 </footer>
 
 <script src="app.js"></script>
+
 </body>
 </html>
