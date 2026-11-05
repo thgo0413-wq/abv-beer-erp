@@ -1,7 +1,5 @@
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
@@ -17,14 +15,8 @@ header {
   text-align: center;
 }
 
-header h1 {
-  margin: 0 0 8px;
-}
-
-header p {
-  margin: 0;
-  color: #d2e0e8;
-}
+header h1 { margin: 0 0 8px; }
+header p { margin: 0; color: #d2e0e8; }
 
 nav {
   display: flex;
@@ -45,9 +37,7 @@ button {
   font-size: 15px;
 }
 
-button:hover {
-  opacity: .85;
-}
+button:hover { opacity: .85; }
 
 .tab {
   background: #e5ebef;
@@ -67,20 +57,11 @@ main {
   min-height: 60vh;
 }
 
-.page {
-  display: none;
-}
+.page { display: none; }
+.page.active { display: block; }
+h2 { margin-top: 0; }
 
-.page.active {
-  display: block;
-}
-
-h2 {
-  margin-top: 0;
-}
-
-input,
-select {
+input, select {
   width: 100%;
   padding: 11px;
   border: 1px solid #ccd4da;
@@ -103,26 +84,16 @@ table {
   min-width: 600px;
 }
 
-th,
-td {
+th, td {
   padding: 12px;
   border-bottom: 1px solid #e5e9ec;
   text-align: center;
 }
 
-th {
-  background: #eaf0f3;
-}
+th { background: #eaf0f3; }
+td input { min-width: 75px; margin: 0; }
 
-td input {
-  min-width: 75px;
-  margin: 0;
-}
-
-#productList,
-#orderList {
-  margin-top: 18px;
-}
+#productList, #orderList { margin-top: 18px; }
 
 .card {
   background: white;
@@ -132,14 +103,8 @@ td input {
   border: 1px solid #e1e6ea;
 }
 
-.card h3 {
-  margin-top: 0;
-}
-
-.card select,
-.card input {
-  margin-top: 8px;
-}
+.card h3 { margin-top: 0; }
+.card select, .card input { margin-top: 8px; }
 
 form {
   background: white;
@@ -174,25 +139,15 @@ footer {
   margin-top: 8px;
 }
 
-.vendorGroup p {
-  margin-bottom: 0;
-}
+.vendorGroup p { margin-bottom: 0; }
 
-/* =========================
-   第一頁：庫存表格手機版排版
-   固定三欄，不需要左右滑動
-   ========================= */
-
-#stock .table-wrap {
-  overflow-x: hidden;
-  width: 100%;
-}
+/* 第一頁庫存表：手機固定三欄 */
+#stock .table-wrap { overflow-x: hidden; }
 
 #stock table {
   width: 100%;
   min-width: 0;
   table-layout: fixed;
-  border-collapse: collapse;
 }
 
 #stock table th,
@@ -206,20 +161,20 @@ footer {
 
 #stock table th:nth-child(1),
 #stock table td:nth-child(1) {
-  width: 34%;
+  width: 32%;
 }
 
 #stock table th:nth-child(2),
 #stock table td:nth-child(2),
 #stock table th:nth-child(3),
 #stock table td:nth-child(3) {
-  width: 33%;
+  width: 34%;
 }
 
 #stock table td input.fridge,
 #stock table td input.cabinet {
   display: block;
-  width: 50px;
+  width: 54px;
   min-width: 0;
   max-width: 100%;
   margin: 2px auto;
@@ -229,41 +184,123 @@ footer {
 }
 
 @media (max-width: 600px) {
-  nav {
-    justify-content: flex-start;
-  }
+  nav { justify-content: flex-start; }
+  header h1 { font-size: 23px; }
+  main { margin-top: 18px; }
+}
 
-  header h1 {
-    font-size: 23px;
-  }
-
-  main {
-    margin-top: 18px;
-  }
-
+@media (max-width: 380px) {
   #stock table th,
   #stock table td {
-    padding: 8px 2px;
+    padding: 7px 2px;
     font-size: 12px;
   }
 
   #stock table td input.fridge,
   #stock table td input.cabinet {
     width: 46px;
-    font-size: 14px;
   }
 }
 
-@media (max-width: 380px) {
-  #stock table th,
-  #stock table td {
-    padding: 6px 1px;
-    font-size: 11px;
-  }
+/* 批次匯入：手機優先逐筆檢視 */
+textarea {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid #ccd4da;
+  border-radius: 6px;
+  margin: 6px 0 12px;
+  font: inherit;
+  resize: vertical;
+}
 
-  #stock table td input.fridge,
-  #stock table td input.cabinet {
-    width: 40px;
-    padding: 6px 1px;
-  }
+.bulk-source { max-width: 850px; }
+
+.bulk-source label {
+  display: block;
+  font-weight: bold;
+}
+
+.muted {
+  color: #6d7b83;
+  font-size: 13px;
+}
+
+.bulk-review-card {
+  background: white;
+  border: 1px solid #dce3e8;
+  border-radius: 10px;
+  padding: 14px;
+  margin: 12px 0;
+}
+
+.bulk-review-card .bulk-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.bulk-review-card .bulk-index { font-weight: bold; }
+
+.bulk-review-card label {
+  display: block;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.bulk-review-card input,
+.bulk-review-card select {
+  margin-bottom: 5px;
+}
+
+.bulk-review-card .raw-type {
+  color: #667780;
+  font-size: 13px;
+  margin: 5px 0;
+  overflow-wrap: anywhere;
+}
+
+.bulk-review-card .bulk-action {
+  background: #f2f5f7;
+  border-radius: 7px;
+  padding: 9px;
+  margin-top: 8px;
+}
+
+.bulk-review-card .bulk-action label { margin-top: 0; }
+
+.bulk-review-card .bulk-select-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.bulk-review-card .bulk-select-row input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.bulk-confirm {
+  position: sticky;
+  bottom: 8px;
+  z-index: 3;
+  background: #fff;
+  border: 1px solid #d7e0e5;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 3px 12px #0001;
+}
+
+.bulk-confirm button { margin: 4px 5px 4px 0; }
+
+button.secondary {
+  background: #e5ebef;
+  color: #263238;
+}
+
+@media (max-width: 600px) {
+  .bulk-review-card { padding: 12px; }
+  .bulk-review-card .bulk-card-top { align-items: flex-start; }
+  .bulk-confirm { bottom: 4px; }
 }
