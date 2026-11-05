@@ -1,0 +1,88 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ABV 啤酒庫存與叫貨系統</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>ABV 啤酒庫存與叫貨系統</h1>
+  <p>庫存盤點・商品管理・叫貨建議</p>
+</header>
+
+<nav>
+  <button class="tab active" data-page="stock">庫存盤點</button>
+  <button class="tab" data-page="products">商品資料</button>
+  <button class="tab" data-page="orders">叫貨建議</button>
+  <button class="tab" data-page="add">新增商品</button>
+</nav>
+
+<main>
+  <section id="stock" class="page active">
+    <h2>庫存盤點</h2>
+    <p>輸入冰箱及櫃子的實際庫存數量。</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>啤酒類型</th>
+            <th>冰箱現有</th>
+            <th>冰箱目標</th>
+            <th>櫃子現有</th>
+            <th>櫃子目標</th>
+          </tr>
+        </thead>
+        <tbody id="stockTable"></tbody>
+      </table>
+    </div>
+    <button id="saveStock">儲存庫存</button>
+  </section>
+
+  <section id="products" class="page">
+    <h2>商品資料</h2>
+    <input id="searchProduct" placeholder="搜尋商品名稱或供應商">
+    <select id="filterType">
+      <option value="">全部啤酒類型</option>
+    </select>
+    <div id="productList"></div>
+  </section>
+
+  <section id="orders" class="page">
+    <h2>叫貨建議</h2>
+    <p>依庫存缺口計算叫貨量，由員工自行選擇商品與供應商。</p>
+    <div id="orderList"></div>
+    <button id="exportOrders">匯出叫貨清單</button>
+  </section>
+
+  <section id="add" class="page">
+    <h2>新增商品</h2>
+    <form id="addForm">
+      <label>商品名稱</label>
+      <input id="productName" required placeholder="輸入商品名稱">
+
+      <label>啤酒類型</label>
+      <select id="productType" required></select>
+
+      <label>供應商</label>
+      <div id="vendorInputs">
+        <input class="vendor" required placeholder="供應商名稱">
+      </div>
+
+      <button type="button" id="addVendor">＋ 新增供應商</button>
+      <button type="submit">新增商品</button>
+    </form>
+  </section>
+</main>
+
+<footer>
+  <button id="backup">匯出資料備份</button>
+  <p>資料儲存在目前裝置的瀏覽器中。</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
