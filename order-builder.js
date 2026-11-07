@@ -305,23 +305,19 @@
       return;
     }
 
-    const matched = products().filter(p =>
-      (
-        q &&
-        String(p.name)
-          .toLocaleLowerCase()
-          .includes(q)
-      ) ||
-      (
-        t &&
-        productTypes(p).includes(t)
-      ) ||
-      (
-        v &&
-        vendorsOf(p).includes(v)
-      )
-    );
-
+const matched = products().filter(p =>
+  (!q ||
+    String(p.name)
+      .toLocaleLowerCase()
+      .includes(q)
+  ) &&
+  (!t ||
+    productTypes(p).includes(t)
+  ) &&
+  (!v ||
+    vendorsOf(p).includes(v)
+  )
+);
     results.innerHTML = `
       <p class="ob-muted">
         找到 ${matched.length} 款可叫商品
