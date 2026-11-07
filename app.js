@@ -2859,3 +2859,221 @@ renderOrders();
   renderBulkReview();
 
 })();
+
+
+/* ==========================================
+   ABV 批次匯入：重複商品編號升級
+   直接貼在 app.js 最底部
+   ========================================== */
+
+(function () {
+  "use strict";
+
+  const confirmButton =
+    document.querySelector("#confirmBulk");
+
+  if (!confirmButton) return;
+
+  // 保存原本已經設定好的確認匯入功能
+  const originalConfirm = confirmButton.onclick;
+
+  function removeDuplicatePanel() {
+    document.querySelector(
+      "#abv-duplicate-panel"
+    )?.remove();
+  }
+
+  function findDuplicates() {
+    const groups = new Map();
+
+    pendingBulk.forEach((item, index) => {
+      if (!item.include) return;
+
+      const name = String(item.name || "").trim();
+      const key = normalizeProductName(name);
+
+      if (!key) return;
+
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+
+      groups.get(key).push({
+        name,
+        index
+      });
+    });
+
+    return [...groups.values()]
+      .filter(group => group.length > 1);
+  }
+
+  function showDuplicates(groups) {
+    const review =
+      document.querySelector("#bulkReview");
+
+    if (!review) return;
+
+    removeDuplicatePanel();
+
+    const panel = document.createElement("div");
+    panel.id = "abv-duplicate-panel";
+
+    panel.style.cssText = `
+      padding:16px;
+      margin:12px 0 20px;
+      border:2px solid #dc3545;
+      border-radius:12px;
+      background:#fff4f4;
+      color:#333;
+    `;
+
+    panel.innerHTML = `
+      <h3 style="margin:0 0 10px;color:#b42318">
+        發現 ${groups.length} 組重複商品
+      </h3>
+
+      <p style="font-size:13px">
+        點擊編號即可跳到對應商品。
+        修改名稱或取消勾選後，
+        再按一次確認匯入。
+      </p>
+
+      ${groups.map(group => `
+        <div style="
+          padding:10px 0;
+          border-bottom:1px solid #e5b5b5;
+        ">
+          <strong>
+            ${safe(group[0].name)}
+          </strong>
+
+          <div style="
+            display:flex;
+            flex-wrap:wrap;
+            gap:8px;
+            margin-top:8px;
+          ">
+            ${group.map(entry => `
+              <button
+                type="button"
+                class="abv-jump-duplicate"
+                data-jump-index="${entry.index}"
+                style="
+                  padding:8px 12px;
+                  border:1px solid #b42318;
+                  border-radius:8px;
+                  background:white;
+                  color:#b42318;
+                  font-weight:bold;
+                  cursor:pointer;
+                "
+              >
+                第 ${entry.index + 1} 筆
+              </button>
+            `).join("")}
+          </div>
+        </div>
+      `).join("")}
+    `;
+
+    review.prepend(panel);
+
+    panel.querySelectorAll(
+      ".abv-jump-duplicate"
+    ).forEach(button => {
+      button.onclick = () => {
+        const index = Number(
+          button.dataset.jumpIndex
+        );
+
+        const card = [...review.querySelectorAll(
+          ".bulk-review-card"
+        )].find(element =>
+          Number(element.dataset.bulkIndex) === index
+        );
+
+        if (!card) return;
+
+        card.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+
+        card.style.outline =
+          "3px solid #dc3545";
+
+        card.style.outlineOffset = "3px";
+
+        const input =
+          card.querySelector(".bulk-name");
+
+        if (input) {
+          input.focus({
+            preventScroll: true
+          });
+        }
+      };
+    });
+
+    panel.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }
+
+  // 在原本確認匯入功能執行前，
+  // 先檢查全部重複名稱
+  confirmButton.onclick = function (event) {
+    removeDuplicatePanel();
+
+    if (!pendingBulk.length) {
+      if (typeof originalConfirm === "function") {
+        return originalConfirm.call(this, event);
+      }
+      return;
+    }
+
+    const duplicates = findDuplicates();
+
+    if (duplicates.length) {
+      showDuplicates(duplicates);
+
+      alert(
+        `發現 ${duplicates.length} 組重複商品！\n` +
+        "已在審核畫面上方列出所有商品編號。"
+      );
+
+      return;
+    }
+
+    // 沒有重複商品：
+    // 完整執行原本的批次匯入流程
+    if (typeof originalConfirm === "function") {
+      return originalConfirm.call(this, event);
+    }
+  };
+
+  // 開始新一批檢視時，清除舊提示
+  const parseButton =
+    document.querySelector("#parseBulk");
+
+  if (parseButton) {
+    parseButton.addEventListener(
+      "click",
+      removeDuplicatePanel
+    );
+  }
+
+  const cancelButton =
+    document.querySelector("#cancelBulk");
+
+  if (cancelButton) {
+    cancelButton.addEventListener(
+      "click",
+      removeDuplicatePanel
+    );
+  }
+
+})();
+
