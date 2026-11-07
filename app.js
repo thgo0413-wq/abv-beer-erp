@@ -1206,3 +1206,984 @@ document.querySelector("#confirmBulk").onclick = () => {
 renderStock();
 renderProducts();
 renderOrders();
+
+
+// ==========================================
+// ABV 升級：複數類型＋商品編輯
+// 適用於目前的 app.js
+// 請整段貼在檔案最底部
+// ==========================================
+
+(function () {
+  "use strict";
+
+  const ABV_TYPES = TYPES.map(item => item[0]);
+
+  // --------------------------
+  // 1. 舊資料相容
+  // --------------------------
+
+  function normalizeTypes(product) {
+    const oldTypes = Array.isArray(product.types)
+      ? product.types
+      : [];
+
+    let types = [...new Set(
+      oldTypes.filter(t => ABV_TYPES.includes(t))
+    )];
+
+    const primary = ABV_TYPES.includes(product.type)
+      ? product.type
+      : types[0];
+
+    if (primary && !types.includes(primary)) {
+      // 舊版批次匯入若改變主要分類，
+      // 以新分類取代原主要分類
+      const previousPrimary = product._abvPrimary;
+
+      if (
+        previousPrimary &&
+        types.includes(previousPrimary)
+      ) {
+        types = types.filter(t => t !== previousPrimary);
+      }
+
+      types.unshift(primary);
+    }
+
+    if (!types.length) {
+      types = ["其他"];
+    }
+
+    product.types = types;
+    product.type = primary || types[0];
+    product._abvPrimary = product.type;
+  }
+
+  data.products.forEach(normalizeTypes);
+
+  // 擴充原本儲存功能
+  const originalSave = save;
+
+  save = function () {
+    data.products.forEach(normalizeTypes);
+    originalSave();
+  };
+
+  function hasType(product, type) {
+    return (
+      Array.isArray(product.types)
+        ? product.types
+        : [product.type]
+    ).includes(type);
+  }
+
+  function uniqueVendors(text) {
+    return [...new Set(
+      String(text || "")
+        .split(/[,，、\n]+/)
+        .map(v => v.trim())
+        .filter(Boolean)
+    )];
+  }
+
+  // --------------------------
+  // 2. 共用複選介面
+  // --------------------------
+
+  function typePickerHTML(selected) {
+    const values = Array.isArray(selected)
+      ? selected
+      : [];
+
+    const chips = values.map(t => `
+      <span style="
+        display:inline-flex;
+        align-items:center;
+        padding:5px 10px;
+        border-radius:20px;
+        background:#e8edf5;
+        color:#202b3b;
+        font-size:13px;
+      ">
+        ${safe(t)}
+      </span>
+    `).join("");
+
+    const options = ABV_TYPES.map(type => `
+      <label style="
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        gap:4px;
+        padding:9px 5px;
+        border:1px solid #ccc;
+        border-radius:8px;
+        font-size:12px;
+        cursor:pointer;
+        text-align:center;
+        min-height:32px;
+      ">
+        <input
+          type="checkbox"
+          class="abv-type-check"
+          value="${safe(type)}"
+          ${values.includes(type) ? "checked" : ""}
+          style="width:auto;margin:0"
+        >
+        <span>${safe(type)}</span>
+      </label>
+    `).join("");
+
+    return `
+      <div class="abv-type-picker">
+        <div style="
+          font-weight:bold;
+          margin-bottom:8px;
+        ">
+          啤酒類型（可複選）
+        </div>
+
+        <div class="abv-selected-types"
+          style="
+            display:flex;
+            flex-wrap:wrap;
+            gap:6px;
+            margin-bottom:10px;
+          ">
+          ${chips || "尚未選擇類型"}
+        </div>
+
+        <details>
+          <summary style="
+            cursor:pointer;
+            padding:10px;
+            border:1px solid #bbb;
+            border-radius:8px;
+            margin-bottom:10px;
+          ">
+            ＋ 新增／移除啤酒類型
+          </summary>
+
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(3,minmax(0,1fr));
+            gap:7px;
+            margin-top:10px;
+          ">
+            ${options}
+          </div>
+        </details>
+      </div>
+    `;
+  }
+
+  function selectedTypes(picker) {
+    if (!picker) return [];
+
+    return [...picker.querySelectorAll(
+      ".abv-type-check:checked"
+    )].map(input => input.value);
+  }
+
+  function refreshPicker(picker) {
+    const values = selectedTypes(picker);
+
+    const display = picker.querySelector(
+      ".abv-selected-types"
+    );
+
+    display.innerHTML = values.length
+      ? values.map(type => `
+          <span style="
+            display:inline-flex;
+            align-items:center;
+            padding:5px 10px;
+            border-radius:20px;
+            background:#e8edf5;
+            color:#202b3b;
+            font-size:13px;
+          ">
+            ${safe(type)}
+          </span>
+        `).join("")
+      : "<span>尚未選擇類型</span>";
+  }
+
+  function bindPicker(picker) {
+    picker.querySelectorAll(
+      ".abv-type-check"
+    ).forEach(input => {
+      input.onchange = () => refreshPicker(picker);
+    });
+  }
+
+  // --------------------------
+  // 3. 新增商品：複數類型
+  // --------------------------
+
+  const addTypeSelect = document.querySelector(
+    "#productType"
+  );
+
+  const addForm = document.querySelector("#addForm");
+
+  const addPicker = document.createElement("div");
+  addPicker.id = "abv-add-type-picker";
+
+  addPicker.innerHTML = typePickerHTML(
+    addTypeSelect.value
+      ? [addTypeSelect.value]
+      : []
+  );
+
+  // 隱藏舊版單選下拉欄位
+  addTypeSelect.style.display = "none";
+
+  // 插入新版複選介面
+  addTypeSelect.insertAdjacentElement(
+    "afterend",
+    addPicker
+  );
+
+  bindPicker(addPicker);
+
+  // 取代舊版新增商品事件
+  addForm.onsubmit = event => {
+    event.preventDefault();
+
+    const name = document.querySelector(
+      "#productName"
+    ).value.trim();
+
+    const types = selectedTypes(addPicker);
+
+    const vendors = [...new Set(
+      [...document.querySelectorAll(
+        "#vendorInputs .vendor"
+      )]
+        .map(input => input.value.trim())
+        .filter(Boolean)
+    )];
+
+    if (!name) {
+      alert("請輸入商品名稱");
+      return;
+    }
+
+    if (!types.length) {
+      alert("請至少選擇一種啤酒類型");
+      return;
+    }
+
+    if (!vendors.length) {
+      alert("請至少輸入一個供應商");
+      return;
+    }
+
+    const duplicate = data.products.find(p =>
+      p.active !== false &&
+      normalizeProductName(p.name) ===
+        normalizeProductName(name)
+    );
+
+    if (duplicate) {
+      alert(
+        "已有相同名稱的商品：" +
+        duplicate.name +
+        "\n請到商品資料頁面編輯。"
+      );
+      return;
+    }
+
+    data.products.push({
+      id: id(),
+      name,
+      type: types[0],
+      types,
+      vendors,
+      active: true,
+      location: "none"
+    });
+
+    data.importNameRules[
+      normalizeProductName(name)
+    ] = types[0];
+
+    save();
+
+    addForm.reset();
+
+    document.querySelector(
+      "#vendorInputs"
+    ).innerHTML = `
+      <input
+        class="vendor"
+        required
+        placeholder="供應商名稱"
+      >
+    `;
+
+    // 重設類型選擇
+    addPicker.innerHTML = typePickerHTML([]);
+    bindPicker(addPicker);
+
+    renderProducts();
+    renderOrders();
+
+    alert("商品新增成功！");
+  };
+
+  // --------------------------
+  // 4. 商品資料：搜尋＋編輯
+  // --------------------------
+
+  renderProducts = function () {
+    const keyword = (
+      document.querySelector(
+        "#searchProduct"
+      ).value || ""
+    ).trim().toLowerCase();
+
+    const filter = document.querySelector(
+      "#filterType"
+    ).value;
+
+    const container = document.querySelector(
+      "#productList"
+    );
+
+    if (!keyword && !filter) {
+      container.innerHTML =
+        "<p>請輸入商品名稱、供應商，或選擇商品種類後搜尋。</p>";
+      return;
+    }
+
+    const products = data.products.filter(p =>
+      p.active !== false &&
+      (!filter || hasType(p, filter)) &&
+      (
+        String(p.name || "")
+          .toLowerCase()
+          .includes(keyword) ||
+        (p.vendors || []).some(v =>
+          String(v)
+            .toLowerCase()
+            .includes(keyword)
+        )
+      )
+    );
+
+    if (!products.length) {
+      container.innerHTML =
+        "<p>沒有找到符合條件的商品。</p>";
+      return;
+    }
+
+    container.innerHTML = products.map(p => {
+      normalizeTypes(p);
+
+      const location = p.location || "none";
+
+      const typeBadges = p.types.map(type => `
+        <span style="
+          display:inline-block;
+          padding:5px 9px;
+          margin:2px 3px 2px 0;
+          border-radius:20px;
+          background:#e8edf5;
+          color:#202b3b;
+          font-size:12px;
+        ">
+          ${safe(type)}
+        </span>
+      `).join("");
+
+      return `
+        <div class="card"
+          data-abv-product="${safe(p.id)}">
+
+          <h3>${safe(p.name)}</h3>
+
+          <div style="margin:8px 0">
+            ${typeBadges}
+          </div>
+
+          <p>
+            供應商：
+            ${safe((p.vendors || []).join("、"))}
+          </p>
+
+          <label>是否有貨</label>
+
+          <select class="abv-location">
+            <option value="none"
+              ${location === "none" ? "selected" : ""}>
+              無
+            </option>
+            <option value="fridge"
+              ${location === "fridge" ? "selected" : ""}>
+              冰箱
+            </option>
+            <option value="cabinet"
+              ${location === "cabinet" ? "selected" : ""}>
+              櫃子
+            </option>
+          </select>
+
+          <div style="
+            display:flex;
+            gap:8px;
+            flex-wrap:wrap;
+            margin-top:12px;
+          ">
+            <button
+              type="button"
+              class="abv-edit-button"
+            >
+              ✏️ 編輯商品
+            </button>
+
+            <button
+              type="button"
+              class="abv-disable-button"
+            >
+              停用商品
+            </button>
+          </div>
+
+          <div
+            class="abv-editor"
+            hidden
+            style="
+              border:1px solid #ccc;
+              border-radius:10px;
+              padding:12px;
+              margin-top:12px;
+            "
+          >
+            <h4>編輯商品資料</h4>
+
+            <label>商品名稱</label>
+            <input
+              class="abv-edit-name"
+              value="${safe(p.name)}"
+              style="
+                width:100%;
+                box-sizing:border-box;
+                margin:6px 0 12px;
+              "
+            >
+
+            ${typePickerHTML(p.types)}
+
+            <label>供應商</label>
+
+            <textarea
+              class="abv-edit-vendors"
+              rows="2"
+              style="
+                width:100%;
+                box-sizing:border-box;
+                margin:6px 0;
+              "
+            >${safe((p.vendors || []).join("、"))}</textarea>
+
+            <p style="
+              font-size:12px;
+              opacity:.7;
+            ">
+              多個供應商可用逗號、頓號或換行分隔
+            </p>
+
+            <div style="
+              display:flex;
+              gap:8px;
+              flex-wrap:wrap;
+              margin-top:12px;
+            ">
+              <button
+                type="button"
+                class="abv-save-button"
+              >
+                儲存修改
+              </button>
+
+              <button
+                type="button"
+                class="abv-cancel-button"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    container.querySelectorAll(
+      "[data-abv-product]"
+    ).forEach(card => {
+      const product = data.products.find(p =>
+        String(p.id) ===
+          card.dataset.abvProduct
+      );
+
+      if (!product) return;
+
+      const editor = card.querySelector(
+        ".abv-editor"
+      );
+
+      const picker = editor.querySelector(
+        ".abv-type-picker"
+      );
+
+      bindPicker(picker);
+
+      // 是否有貨
+      card.querySelector(
+        ".abv-location"
+      ).onchange = event => {
+        product.location = event.target.value;
+        save();
+        renderProducts();
+        renderOrders();
+      };
+
+      // 展開編輯
+      card.querySelector(
+        ".abv-edit-button"
+      ).onclick = () => {
+        editor.hidden = !editor.hidden;
+      };
+
+      // 取消編輯
+      card.querySelector(
+        ".abv-cancel-button"
+      ).onclick = () => {
+        renderProducts();
+      };
+
+      // 停用商品
+      card.querySelector(
+        ".abv-disable-button"
+      ).onclick = () => {
+        if (!confirm(
+          `確定停用「${product.name}」？`
+        )) return;
+
+        product.active = false;
+        save();
+        renderProducts();
+        renderOrders();
+      };
+
+      // 儲存編輯
+      card.querySelector(
+        ".abv-save-button"
+      ).onclick = () => {
+        const newName = editor.querySelector(
+          ".abv-edit-name"
+        ).value.trim();
+
+        const newTypes = selectedTypes(picker);
+
+        const newVendors = uniqueVendors(
+          editor.querySelector(
+            ".abv-edit-vendors"
+          ).value
+        );
+
+        if (!newName) {
+          alert("商品名稱不能空白");
+          return;
+        }
+
+        if (!newTypes.length) {
+          alert("請至少選擇一種啤酒類型");
+          return;
+        }
+
+        if (!newVendors.length) {
+          alert("至少需要一個供應商");
+          return;
+        }
+
+        const duplicate = data.products.find(p =>
+          p.active !== false &&
+          String(p.id) !== String(product.id) &&
+          normalizeProductName(p.name) ===
+            normalizeProductName(newName)
+        );
+
+        if (duplicate) {
+          alert(
+            "已有相同名稱的商品：" +
+            duplicate.name
+          );
+          return;
+        }
+
+        const oldName = product.name;
+        const oldType = product.type;
+
+        product.name = newName;
+        product.types = newTypes;
+        product.type = newTypes[0];
+        product._abvPrimary = newTypes[0];
+        product.vendors = newVendors;
+
+        const oldKey = normalizeProductName(
+          oldName
+        );
+
+        const newKey = normalizeProductName(
+          newName
+        );
+
+        // 修正舊商品分類學習
+        if (
+          oldKey !== newKey &&
+          data.importNameRules[oldKey] === oldType
+        ) {
+          delete data.importNameRules[oldKey];
+        }
+
+        // 智慧分類保留第一個類型作為預設
+        data.importNameRules[newKey] =
+          newTypes[0];
+
+        save();
+
+        renderProducts();
+        renderOrders();
+
+        alert("商品資料已更新！");
+      };
+    });
+  };
+
+  // --------------------------
+  // 5. 叫貨建議：支援多類型
+  // --------------------------
+
+  renderOrders = function () {
+    const container = document.querySelector(
+      "#orderList"
+    );
+
+    if (!container) return;
+
+    const available = getAvailableProducts();
+    const html = [];
+
+    TYPES.forEach(([
+      type,
+      fridgeTarget,
+      cabinetTarget
+    ]) => {
+      const deficit = getOrderDeficit(
+        type,
+        fridgeTarget,
+        cabinetTarget
+      );
+
+      if (deficit === 0) return;
+
+      // 一款酒可以符合多個類型
+      const products = available.filter(p =>
+        hasType(p, type)
+      );
+
+      if (!products.length) return;
+
+      const vendorGroups = {};
+
+      products.forEach(product => {
+        [...new Set(
+          product.vendors || []
+        )].forEach(vendor => {
+          if (!vendorGroups[vendor]) {
+            vendorGroups[vendor] = [];
+          }
+
+          vendorGroups[vendor].push(
+            product.name
+          );
+        });
+      });
+
+      const vendorHtml = Object.keys(
+        vendorGroups
+      )
+        .sort((a, b) =>
+          a.localeCompare(b, "zh-Hant")
+        )
+        .map(vendor => {
+          const names = [...new Set(
+            vendorGroups[vendor]
+          )];
+
+          return `
+            <details style="
+              margin:8px 0;
+              border:1px solid #ddd;
+              border-radius:8px;
+              padding:10px;
+            ">
+              <summary style="
+                cursor:pointer;
+                font-weight:bold;
+              ">
+                ${safe(vendor)}
+                <span style="
+                  font-size:12px;
+                  font-weight:normal;
+                  opacity:.65;
+                ">
+                  （${names.length} 款）
+                </span>
+              </summary>
+
+              <div style="
+                padding:10px 4px 2px;
+                line-height:1.9;
+              ">
+                ${names.map(name => `
+                  <div>・${safe(name)}</div>
+                `).join("")}
+              </div>
+            </details>
+          `;
+        }).join("");
+
+      html.push(`
+        <div class="card">
+          <h3>${safe(type)}</h3>
+          <p>
+            <strong>
+              需叫 ${deficit} 排
+            </strong>
+          </p>
+          ${vendorHtml}
+        </div>
+      `);
+    });
+
+    container.innerHTML = html.length
+      ? html.join("")
+      : "<p>目前沒有需要補貨且有可叫商品的類型。</p>";
+  };
+
+  // --------------------------
+  // 6. CSV：支援多類型
+  // --------------------------
+
+  document.querySelector(
+    "#exportOrders"
+  ).onclick = () => {
+    const rows = [[
+      "啤酒類型",
+      "建議叫貨排數",
+      "供應商",
+      "商品名稱"
+    ]];
+
+    const available = getAvailableProducts();
+
+    TYPES.forEach(([
+      type,
+      fridgeTarget,
+      cabinetTarget
+    ]) => {
+      const deficit = getOrderDeficit(
+        type,
+        fridgeTarget,
+        cabinetTarget
+      );
+
+      if (deficit === 0) return;
+
+      available
+        .filter(p => hasType(p, type))
+        .forEach(product => {
+          [...new Set(
+            product.vendors || []
+          )].forEach(vendor => {
+            rows.push([
+              type,
+              deficit,
+              vendor,
+              product.name
+            ]);
+          });
+        });
+    });
+
+    if (rows.length === 1) {
+      alert("目前沒有可匯出的叫貨品項。");
+      return;
+    }
+
+    const csv = "\uFEFF" + rows.map(row =>
+      row.map(value =>
+        `"${String(value ?? "")
+          .replace(/"/g, '""')}"`
+      ).join(",")
+    ).join("\r\n");
+
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "可叫貨品項清單.csv";
+    link.click();
+
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 1000);
+  };
+
+  // --------------------------
+  // 7. 舊版批次匯入相容
+  // --------------------------
+
+  // 舊版批次匯入仍會產生單一 type。
+  // 儲存時會自動建立 types 陣列。
+  //
+  // 若是新匯入的商品：
+  //   type: "IPA&PA"
+  //   types: ["IPA&PA"]
+  //
+  // 之後可以在商品資料頁面
+  // 編輯成：
+  //   types: ["IPA&PA", "矮瓶"]
+  //
+  // 商品清單 JSON 匯出會保留 types，
+  // 匯入時另外由以下功能處理。
+
+  const importButton = document.querySelector(
+    "#importProducts"
+  );
+
+  importButton.onclick = () => {
+    chooseJSONFile(parsed => {
+      const products = Array.isArray(parsed)
+        ? parsed
+        : parsed?.products;
+
+      if (
+        !Array.isArray(products) ||
+        !products.every(p =>
+          p &&
+          typeof p === "object" &&
+          typeof p.name === "string" &&
+          typeof p.type === "string" &&
+          Array.isArray(p.vendors) &&
+          p.vendors.every(v =>
+            typeof v === "string"
+          )
+        )
+      ) {
+        alert("商品清單格式不正確，無法匯入。");
+        return;
+      }
+
+      if (!confirm(
+        `即將匯入 ${products.length} 項商品，並取代目前商品清單。\n\n庫存數量不受影響；商品是否有貨會重設為「無」。\n\n確定繼續嗎？`
+      )) return;
+
+      data.products = products.map(p => {
+        const types = Array.isArray(p.types)
+          ? [...new Set(
+              p.types.filter(t =>
+                ABV_TYPES.includes(t)
+              )
+            )]
+          : [];
+
+        const primary = ABV_TYPES.includes(p.type)
+          ? p.type
+          : types[0] || "其他";
+
+        if (!types.includes(primary)) {
+          types.unshift(primary);
+        }
+
+        return {
+          id: p.id || id(),
+          name: p.name,
+          type: primary,
+          types,
+          _abvPrimary: primary,
+          vendors: [...new Set(
+            p.vendors
+              .map(v => v.trim())
+              .filter(Boolean)
+          )],
+          active: p.active !== false,
+          location: "none"
+        };
+      });
+
+      const importedRules =
+        parsed && !Array.isArray(parsed)
+          ? parsed.classificationRules
+          : null;
+
+      if (
+        importedRules &&
+        typeof importedRules === "object" &&
+        !Array.isArray(importedRules)
+      ) {
+        Object.entries(importedRules).forEach(
+          ([key, type]) => {
+            if (ABV_TYPES.includes(type)) {
+              data.importNameRules[key] = type;
+            }
+          }
+        );
+      }
+
+      const importedStyles =
+        parsed && !Array.isArray(parsed)
+          ? parsed.styleRules
+          : null;
+
+      if (
+        importedStyles &&
+        typeof importedStyles === "object" &&
+        !Array.isArray(importedStyles)
+      ) {
+        Object.entries(importedStyles).forEach(
+          ([key, type]) => {
+            if (ABV_TYPES.includes(type)) {
+              data.importStyleRules[key] = type;
+            }
+          }
+        );
+      }
+
+      save();
+      renderProducts();
+      renderOrders();
+
+      alert(
+        `成功匯入 ${products.length} 項商品！`
+      );
+    });
+  };
+
+  // --------------------------
+  // 8. 更新頁面
+  // --------------------------
+
+  renderProducts();
+  renderOrders();
+
+})();
