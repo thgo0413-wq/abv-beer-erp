@@ -669,6 +669,20 @@ function inferType(productName, sourceType, supplier, volume, canNote) {
   // 第三層：風格關鍵字
   // 複合風格放前面，避免被一般風格覆蓋
   const rules = [
+    
+    [
+      /琥珀|amber(?:\s|-)*(?:ale|lager)?/i,
+      "琥珀"
+    ],
+    [
+      /維也納|vienna(?:\s|-)*lager|\bvienna\b/i,
+      "維也納"
+    ],
+    [
+      /酸愛爾|酸艾爾|柏林小麥|berliner[\s-]*weisse|鹽小麥|\bgose\b|農舍愛爾|農舍艾爾|farmhouse[\s-]*ale|季節啤酒|\bsaison\b|法蘭德斯紅|法蘭德斯棕|flanders[\s-]*(?:red|brown)|oud[\s-]*bruin/i,
+      "酸"
+    ],
+
     [
       /比利時.{0,8}(金黃強|黃金強)|金黃強.{0,6}(愛爾|艾爾)|belgian.{0,12}strong golden/,
       "金黃強"
@@ -712,10 +726,6 @@ function inferType(productName, sourceType, supplier, volume, canNote) {
     [
       /捷克皮爾森|皮爾森|pilsner|pilsener/,
       "皮爾森"
-    ],
-    [
-      /柏林小麥|berliner weisse/,
-      "其他"
     ],
     [
       /酸啤|酸艾爾|\bsour\b|\bgose\b/,
