@@ -339,6 +339,20 @@ function getAvailableProducts() {
   );
 }
 
+// 冰箱與櫃子合併計算缺貨排數
+function getOrderDeficit(type, fridgeTarget, cabinetTarget) {
+  const stock = data.stock[type] || {
+    fridge: 0,
+    cabinet: 0
+  };
+
+  const targetTotal = fridgeTarget + cabinetTarget;
+  const actualTotal =
+    num(stock.fridge) + num(stock.cabinet);
+
+  return Math.max(0, targetTotal - actualTotal);
+}
+
 function renderOrders() {
   const container = document.querySelector("#orderList");
   if (!container) return;
@@ -347,20 +361,14 @@ function renderOrders() {
   const html = [];
 
   TYPES.forEach(([type, fridgeTarget, cabinetTarget]) => {
-    const stock = data.stock[type] || {
-      fridge: 0,
-      cabinet: 0
-    };
-
-    const fridgeDeficit = Math.max(
-      0, fridgeTarget - num(stock.fridge)
+    const totalDeficit = getOrderDeficit(
+      type,
+      fridgeTarget,
+      cabinetTarget
     );
 
-    const cabinetDeficit = Math.max(
-      0, cabinetTarget - num(stock.cabinet)
-    );
-
-    const totalDeficit = fridgeDeficit + cabinetDeficit;
+    // 庫存總數足夠，不需要叫貨
+    if (totalDeficit === 0) return;
 
     const products = available.filter(p => p.type === type);
     if (!products.length) return;
@@ -374,20 +382,49 @@ function renderOrders() {
       });
     });
 
+    // 只顯示供應商名稱，點開才顯示品項
     const vendorHtml = Object.keys(vendorGroups)
       .sort((a, b) => a.localeCompare(b, "zh-Hant"))
-      .map(vendor => `
-        <div class="vendorGroup">
-          <strong>${safe(vendor)}</strong>
-          <p>${vendorGroups[vendor]
-            .map(name => safe(name)).join("、")}</p>
-        </div>
-      `).join("");
+      .map(vendor => {
+        const names = [...new Set(vendorGroups[vendor])];
+
+        return `
+          <details style="
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+          ">
+            <summary style="
+              cursor: pointer;
+              font-weight: bold;
+            ">
+              ${safe(vendor)}
+              <span style="
+                font-size: 12px;
+                font-weight: normal;
+                opacity: 0.65;
+              ">
+                （${names.length} 款）
+              </span>
+            </summary>
+
+            <div style="
+              padding: 10px 4px 2px;
+              line-height: 1.9;
+            ">
+              ${names.map(name => `
+                <div>・${safe(name)}</div>
+              `).join("")}
+            </div>
+          </details>
+        `;
+      }).join("");
 
     html.push(`
       <div class="card">
         <h3>${safe(type)}</h3>
-        <p>需叫 ${totalDeficit} 排</p>
+        <p><strong>需叫 ${totalDeficit} 排</strong></p>
         ${vendorHtml}
       </div>
     `);
@@ -395,9 +432,10 @@ function renderOrders() {
 
   container.innerHTML = html.length
     ? html.join("")
-    : "<p>目前沒有可叫貨的商品。</p>";
+    : "<p>目前沒有需要補貨且有可叫商品的類型。</p>";
 }
 
+// 匯出叫貨建議 CSV
 document.querySelector("#exportOrders").onclick = () => {
   const rows = [
     ["啤酒類型", "建議叫貨排數", "供應商", "商品名稱"]
@@ -406,14 +444,14 @@ document.querySelector("#exportOrders").onclick = () => {
   const available = getAvailableProducts();
 
   TYPES.forEach(([type, fridgeTarget, cabinetTarget]) => {
-    const stock = data.stock[type] || {
-      fridge: 0,
-      cabinet: 0
-    };
+    const totalDeficit = getOrderDeficit(
+      type,
+      fridgeTarget,
+      cabinetTarget
+    );
 
-    const totalDeficit =
-      Math.max(0, fridgeTarget - num(stock.fridge)) +
-      Math.max(0, cabinetTarget - num(stock.cabinet));
+    // 不匯出庫存已足夠的類型
+    if (totalDeficit === 0) return;
 
     available.filter(p => p.type === type).forEach(product => {
       [...new Set(product.vendors || [])].forEach(vendor => {
@@ -669,7 +707,6 @@ function inferType(productName, sourceType, supplier, volume, canNote) {
   // 第三層：風格關鍵字
   // 複合風格放前面，避免被一般風格覆蓋
   const rules = [
-    
     [
       /琥珀|amber(?:\s|-)*(?:ale|lager)?/i,
       "琥珀"
@@ -682,7 +719,6 @@ function inferType(productName, sourceType, supplier, volume, canNote) {
       /酸愛爾|酸艾爾|柏林小麥|berliner[\s-]*weisse|鹽小麥|\bgose\b|農舍愛爾|農舍艾爾|farmhouse[\s-]*ale|季節啤酒|\bsaison\b|法蘭德斯紅|法蘭德斯棕|flanders[\s-]*(?:red|brown)|oud[\s-]*bruin/i,
       "酸"
     ],
-
     [
       /比利時.{0,8}(金黃強|黃金強)|金黃強.{0,6}(愛爾|艾爾)|belgian.{0,12}strong golden/,
       "金黃強"
