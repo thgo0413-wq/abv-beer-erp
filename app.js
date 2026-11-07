@@ -1041,10 +1041,34 @@ document.querySelector("#parseBulk").onclick = () => {
     return;
   }
 
+  // 依容量自動增加商品名稱前綴
+  function addVolumePrefix(item) {
+    if (!item) return item;
+
+    const prefix =
+      item.volume === 500 ? "50" :
+      item.volume === 750 ? "75" : "";
+
+    if (!prefix) return item;
+
+    const name = String(item.name || "").trim();
+
+    // 已經有相同前綴就不重複增加
+    if (name.startsWith(prefix)) {
+      return item;
+    }
+
+    return {
+      ...item,
+      name: prefix + name
+    };
+  }
+
   const parsed = raw
     .split(/\r?\n/)
     .map(splitSupplierLine)
-    .filter(item => item && item.name);
+    .filter(item => item && item.name)
+    .map(addVolumePrefix);
 
   if (!parsed.length) {
     alert("沒有辨識到商品資料，請確認貼上的內容。");
