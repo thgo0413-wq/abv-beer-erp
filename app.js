@@ -3077,3 +3077,138 @@ renderOrders();
 
 })();
 
+
+/* ==========================================
+   ABV 智慧分類升級
+   鋁罐商品自動尋找第二分類
+   直接貼在 app.js 最底部
+   ========================================== */
+
+(function () {
+  "use strict";
+
+  const parseButton =
+    document.querySelector("#parseBulk");
+
+  if (!parseButton) return;
+
+  const validTypes = TYPES.map(row => row[0]);
+
+  // 根據供應商原始風格判斷第二分類
+  function findCanSecondType(item) {
+    const sourceType =
+      String(item.sourceType || "").trim();
+
+    const name =
+      String(item.name || "").trim();
+
+    const supplier =
+      document.querySelector("#bulkSupplier")
+        ?.value.trim() || "";
+
+    // 優先使用曾經學習過的供應商風格
+    const learnedKey =
+      styleRuleKey(supplier, sourceType);
+
+    const learned =
+      data.importStyleRules[learnedKey];
+
+    if (
+      learned &&
+      validTypes.includes(learned) &&
+      learned !== "鋁罐" &&
+      learned !== "其他"
+    ) {
+      return learned;
+    }
+
+    // 依照原始風格推測
+    // 暫時忽略罐裝標記，避免再次被分到鋁罐
+    const suggestion = inferType(
+      name,
+      sourceType,
+      supplier,
+      null,
+      false
+    );
+
+    if (
+      suggestion &&
+      validTypes.includes(suggestion.type) &&
+      suggestion.type !== "鋁罐" &&
+      suggestion.type !== "其他"
+    ) {
+      return suggestion.type;
+    }
+
+    // 若原本的商品名稱學習規則也是鋁罐，
+    // 再直接從風格文字判斷
+    const text =
+      `${sourceType} ${name}`.toLowerCase();
+
+    const rules = [
+      [/司陶特|斯陶特|世濤|stout/i, "司陶特"],
+      [/波特|porter/i, "波特"],
+      [/酸|sour|gose|berliner/i, "酸"],
+      [/皮爾森|pilsner|pilsener/i, "皮爾森"],
+      [/維也納|vienna/i, "維也納"],
+      [/琥珀|amber/i, "琥珀"],
+      [/ipa|淡愛爾|淡艾爾|pale ale|neipa|dipa/i, "IPA&PA"],
+      [/小麥|白啤|wheat|witbier|weizen/i, "白"],
+      [/拉格|lager/i, "拉格"],
+      [/水果|fruit|果啤|cider|西打/i, "水果"],
+      [/勃克|bock|蘇格蘭|scottish/i, "勃克&蘇格蘭"],
+      [/比利時|belgian|trappist/i, "比利時"],
+      [/德式|德國|german|bavarian/i, "德式"],
+      [/英式|english|british/i, "英式"]
+    ];
+
+    for (const [pattern, type] of rules) {
+      if (pattern.test(text)) {
+        return type;
+      }
+    }
+
+    return null;
+  }
+
+  function autoClassifyCans() {
+    if (!pendingBulk.length) return;
+
+    let changed = false;
+
+    pendingBulk.forEach(item => {
+      const types = Array.isArray(item.types)
+        ? [...item.types]
+        : [item.type];
+
+      // 只處理主要分類為鋁罐的商品
+      if (types[0] !== "鋁罐") return;
+
+      const secondType =
+        findCanSecondType(item);
+
+      if (!secondType) return;
+
+      if (!types.includes(secondType)) {
+        types.push(secondType);
+        changed = true;
+      }
+
+      item.types = types;
+      item.type = "鋁罐";
+    });
+
+    if (changed) {
+      renderBulkReview();
+    }
+  }
+
+  // 解析供應商清單完成後，
+  // 自動尋找鋁罐的第二分類
+  parseButton.addEventListener(
+    "click",
+    autoClassifyCans
+  );
+
+})();
