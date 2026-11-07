@@ -2187,3 +2187,651 @@ renderOrders();
   renderOrders();
 
 })();
+
+
+// ==========================================
+// ABV 批次匯入升級
+// 複數類型＋智慧分類＋安全合併
+// 貼在 app.js 最底部
+// ==========================================
+
+(function () {
+  "use strict";
+
+  const VALID_TYPES = TYPES.map(row => row[0]);
+
+  function getTypes(product) {
+    const types = Array.isArray(product.types)
+      ? product.types.filter(t => VALID_TYPES.includes(t))
+      : [];
+
+    if (
+      VALID_TYPES.includes(product.type) &&
+      !types.includes(product.type)
+    ) {
+      types.unshift(product.type);
+    }
+
+    return [...new Set(types)];
+  }
+
+  function getSelectedTypes(card) {
+    return [...card.querySelectorAll(
+      ".abv-bulk-type:checked"
+    )].map(input => input.value);
+  }
+
+  function renderSelectedTypes(card) {
+    const selected = getSelectedTypes(card);
+    const display = card.querySelector(
+      ".abv-bulk-selected"
+    );
+
+    if (!display) return;
+
+    display.innerHTML = selected.length
+      ? selected.map(type => `
+          <span style="
+            display:inline-flex;
+            align-items:center;
+            padding:5px 9px;
+            border-radius:20px;
+            background:#e8edf5;
+            color:#202b3b;
+            font-size:12px;
+          ">
+            ${safe(type)}
+          </span>
+        `).join("")
+      : `<span style="opacity:.7">
+           尚未選擇類型
+         </span>`;
+  }
+
+  function typePicker(item) {
+    const selected = Array.isArray(item.types)
+      ? item.types
+      : [item.type];
+
+    return `
+      <div class="abv-bulk-picker">
+
+        <label style="
+          display:block;
+          font-weight:bold;
+          margin:12px 0 8px;
+        ">
+          網站分類（可複選）
+        </label>
+
+        <div class="abv-bulk-selected"
+          style="
+            display:flex;
+            flex-wrap:wrap;
+            gap:6px;
+            margin-bottom:10px;
+          ">
+        </div>
+
+        <details class="abv-bulk-details">
+          <summary style="
+            cursor:pointer;
+            padding:11px;
+            border:1px solid #bbb;
+            border-radius:8px;
+            font-weight:bold;
+          ">
+            ＋ 新增／移除啤酒類型
+          </summary>
+
+          <div style="
+            display:grid;
+            grid-template-columns:
+              repeat(3,minmax(0,1fr));
+            gap:7px;
+            margin-top:10px;
+          ">
+            ${VALID_TYPES.map(type => `
+              <label style="
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                gap:4px;
+                padding:9px 5px;
+                border:1px solid #ccc;
+                border-radius:8px;
+                font-size:12px;
+                text-align:center;
+                cursor:pointer;
+                min-height:34px;
+              ">
+                <input
+                  type="checkbox"
+                  class="abv-bulk-type"
+                  value="${safe(type)}"
+                  ${selected.includes(type)
+                    ? "checked"
+                    : ""}
+                  style="
+                    width:auto;
+                    margin:0;
+                    flex-shrink:0;
+                  "
+                >
+                <span>${safe(type)}</span>
+              </label>
+            `).join("")}
+          </div>
+        </details>
+
+        <p style="
+          font-size:12px;
+          opacity:.7;
+          margin:8px 0;
+        ">
+          第一個選取的類型作為智慧分類預設值；
+          所有選取類型都會用於叫貨建議。
+        </p>
+      </div>
+    `;
+  }
+
+  // ========================================
+  // 1. 批次檢視畫面
+  // ========================================
+
+  renderBulkReview = function () {
+    const review = document.querySelector(
+      "#bulkReview"
+    );
+
+    const confirmArea = document.querySelector(
+      "#bulkConfirmArea"
+    );
+
+    if (!pendingBulk.length) {
+      review.innerHTML = "";
+      confirmArea.hidden = true;
+      return;
+    }
+
+    review.innerHTML = `
+      <h3>
+        請逐筆檢視（${pendingBulk.length} 筆）
+      </h3>
+    ` + pendingBulk.map((item, index) => {
+
+      const duplicate = existingProductByName(
+        item.name
+      );
+
+      // 首次進入時，自動保留既有商品類型
+      if (!Array.isArray(item.types)) {
+        const existingTypes = duplicate
+          ? getTypes(duplicate)
+          : [];
+
+        item.types = [...new Set([
+          item.type,
+          ...existingTypes
+        ].filter(t => VALID_TYPES.includes(t)))];
+      }
+
+      if (!item.types.length) {
+        item.types = ["其他"];
+      }
+
+      const action = item.action ||
+        (duplicate ? "merge" : "new");
+
+      return `
+        <article
+          class="bulk-review-card"
+          data-bulk-index="${index}"
+        >
+
+          <div class="bulk-card-top">
+            <span class="bulk-index">
+              商品 ${index + 1}
+              / ${pendingBulk.length}
+            </span>
+
+            <span class="muted">
+              ${safe(item.reason || "請確認分類")}
+            </span>
+          </div>
+
+          <div class="bulk-select-row">
+            <input
+              type="checkbox"
+              class="bulk-include"
+              ${item.include ? "checked" : ""}
+              aria-label="選擇匯入此商品"
+            >
+
+            <strong>納入本次匯入</strong>
+          </div>
+
+          <label>商品名稱（可編輯）</label>
+
+          <input
+            class="bulk-name"
+            value="${safe(item.name)}"
+            autocomplete="off"
+          >
+
+          <div class="raw-type">
+            供應商原始種類：
+            ${safe(item.sourceType || "未提供")}
+
+            ｜容量：
+            ${item.volume
+              ? safe(item.volume + "ml")
+              : "未標示"}
+
+            ${item.canNote
+              ? "｜供應商註明罐裝"
+              : ""}
+          </div>
+
+          ${typePicker(item)}
+
+          <div
+            class="bulk-select-row"
+            style="margin:12px 0"
+          >
+            <input
+              type="checkbox"
+              class="bulk-learn-style"
+              ${item.learnStyle ? "checked" : ""}
+              ${!item.sourceType ? "disabled" : ""}
+            >
+
+            <span>
+              記住此供應商的
+              「${safe(item.sourceType || "未提供風格")}」
+              分類（選填）
+            </span>
+          </div>
+
+          <div class="bulk-action">
+            <label>匯入方式</label>
+
+            <div class="muted">
+              ${duplicate
+                ? `找到既有商品：
+                   ${safe(duplicate.name)}
+                   （合併時保留原有類型）`
+                : "尚未找到完全相同的商品"}
+            </div>
+
+            <select
+              class="bulk-action-select"
+              ${duplicate ? "" : "disabled"}
+            >
+              <option
+                value="new"
+                ${action === "new"
+                  ? "selected"
+                  : ""}
+              >
+                建立新商品
+              </option>
+
+              <option
+                value="merge"
+                ${action === "merge"
+                  ? "selected"
+                  : ""}
+              >
+                併入既有商品並加入供應商
+              </option>
+            </select>
+          </div>
+
+        </article>
+      `;
+    }).join("");
+
+    confirmArea.hidden = false;
+
+    review.querySelectorAll(
+      ".bulk-review-card"
+    ).forEach(card => {
+
+      const index = Number(
+        card.dataset.bulkIndex
+      );
+
+      const item = pendingBulk[index];
+
+      renderSelectedTypes(card);
+
+      // 是否納入
+      card.querySelector(
+        ".bulk-include"
+      ).onchange = event => {
+        item.include = event.target.checked;
+        updateBulkCount();
+      };
+
+      // 修改名稱
+      card.querySelector(
+        ".bulk-name"
+      ).oninput = event => {
+        item.name = event.target.value;
+      };
+
+      // 複數類型選擇
+      card.querySelectorAll(
+        ".abv-bulk-type"
+      ).forEach(input => {
+        input.onchange = () => {
+          item.types = getSelectedTypes(card);
+          item.type = item.types[0] || "";
+
+          renderSelectedTypes(card);
+        };
+      });
+
+      // 學習供應商風格
+      card.querySelector(
+        ".bulk-learn-style"
+      ).onchange = event => {
+        item.learnStyle = event.target.checked;
+      };
+
+      // 新增或合併
+      card.querySelector(
+        ".bulk-action-select"
+      ).onchange = event => {
+        item.action = event.target.value;
+      };
+    });
+
+    updateBulkCount();
+  };
+
+  // ========================================
+  // 2. 批次匯入確認
+  // ========================================
+
+  document.querySelector(
+    "#confirmBulk"
+  ).onclick = () => {
+
+    const supplier = document.querySelector(
+      "#bulkSupplier"
+    ).value.trim();
+
+    const selected = pendingBulk.filter(item =>
+      item.include && item.name.trim()
+    );
+
+    if (!supplier) {
+      alert("請填寫供應商名稱。");
+      return;
+    }
+
+    if (!selected.length) {
+      alert("請至少勾選一筆商品。");
+      return;
+    }
+
+    // --------------------------
+    // 驗證分類
+    // --------------------------
+
+    for (const item of selected) {
+      if (
+        !Array.isArray(item.types) ||
+        !item.types.length
+      ) {
+        alert(
+          `「${item.name}」尚未選擇啤酒類型。`
+        );
+        return;
+      }
+
+      if (
+        item.types.some(t =>
+          !VALID_TYPES.includes(t)
+        )
+      ) {
+        alert(
+          `「${item.name}」包含無效分類。`
+        );
+        return;
+      }
+    }
+
+    // --------------------------
+    // 同批名稱檢查
+    // --------------------------
+
+    const newNames = new Set();
+
+    for (const item of selected) {
+      const nameKey = normalizeProductName(
+        item.name
+      );
+
+      if (!nameKey) {
+        alert("商品名稱不能空白。");
+        return;
+      }
+
+      if (newNames.has(nameKey)) {
+        alert(
+          `本批次有重複商品名稱：
+          ${item.name}
+
+          請先取消其中一筆，
+          避免重複建立商品。`
+        );
+        return;
+      }
+
+      newNames.add(nameKey);
+    }
+
+    // --------------------------
+    // 驗證供應商風格學習
+    // --------------------------
+
+    const newStyleRules = {};
+
+    for (const item of selected) {
+      if (
+        !item.learnStyle ||
+        !item.sourceType
+      ) continue;
+
+      const key = styleRuleKey(
+        supplier,
+        item.sourceType
+      );
+
+      // 只記住主要類型
+      const primary = item.types[0];
+
+      if (
+        newStyleRules[key] &&
+        newStyleRules[key] !== primary
+      ) {
+        alert(
+          `「${item.sourceType}」
+          在本批次設定了不同主要分類。
+
+          請取消部分
+          「記住供應商風格」勾選。`
+        );
+        return;
+      }
+
+      newStyleRules[key] = primary;
+    }
+
+    // --------------------------
+    // 先檢查合併目標
+    // --------------------------
+
+    for (const item of selected) {
+      const existing = existingProductByName(
+        item.name
+      );
+
+      if (
+        existing &&
+        item.action === "new"
+      ) {
+        if (!confirm(
+          `「${item.name}」已存在。
+
+          你選擇建立新商品，
+          可能產生重複品項。
+
+          確定仍要新增嗎？`
+        )) return;
+      }
+    }
+
+    // --------------------------
+    // 最後確認
+    // --------------------------
+
+    if (!confirm(
+      `即將匯入 ${selected.length} 筆商品。
+
+      每款商品可以有多個啤酒類型。
+
+      合併既有商品時，
+      會保留原有類型並加入新類型。
+
+      庫存數量不會改變。
+
+      確定繼續嗎？`
+    )) return;
+
+    // --------------------------
+    // 開始處理
+    // --------------------------
+
+    let added = 0;
+    let merged = 0;
+
+    selected.forEach(item => {
+
+      const name = item.name.trim();
+
+      const types = [...new Set(
+        item.types.filter(t =>
+          VALID_TYPES.includes(t)
+        )
+      )];
+
+      const primary = types[0];
+
+      const existing =
+        item.action === "merge"
+          ? existingProductByName(name)
+          : null;
+
+      if (existing) {
+
+        // 保留既有類型，再加入本次選取類型
+        const oldTypes = getTypes(existing);
+
+        const combinedTypes = [...new Set([
+          ...oldTypes,
+          ...types
+        ])];
+
+        existing.types = combinedTypes;
+
+        // 主要分類沿用原有設定，
+        // 避免重複匯入時意外覆蓋
+        existing.type =
+          VALID_TYPES.includes(existing.type)
+            ? existing.type
+            : primary;
+
+        existing._abvPrimary = existing.type;
+
+        // 加入供應商，避免重複
+        existing.vendors = [...new Set([
+          ...(existing.vendors || []),
+          supplier
+        ].filter(Boolean))];
+
+        // 不改變是否有貨
+        merged++;
+
+        data.importNameRules[
+          normalizeProductName(existing.name)
+        ] = existing.type;
+
+      } else {
+
+        // 建立新商品
+        data.products.push({
+          id: id(),
+          name,
+          type: primary,
+          types,
+          _abvPrimary: primary,
+          vendors: [supplier],
+          active: true,
+          location: "none"
+        });
+
+        data.importNameRules[
+          normalizeProductName(name)
+        ] = primary;
+
+        added++;
+      }
+    });
+
+    // 儲存智慧學習
+    Object.assign(
+      data.importStyleRules,
+      newStyleRules
+    );
+
+    try {
+      save();
+    } catch (error) {
+      alert(
+        "資料儲存失敗，請確認瀏覽器儲存空間。"
+      );
+      return;
+    }
+
+    pendingBulk = [];
+
+    renderBulkReview();
+    renderProducts();
+    renderOrders();
+
+    document.querySelector(
+      "#bulkText"
+    ).value = "";
+
+    alert(
+      `批次匯入完成！
+
+      新增商品：${added} 筆
+      合併供應商：${merged} 筆
+
+      複數類型已同步更新。`
+    );
+  };
+
+  // ========================================
+  // 3. 完成升級
+  // ========================================
+
+  renderBulkReview();
+
+})();
