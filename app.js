@@ -21,24 +21,50 @@ try {
   data = {};
 }
 
-if (!data || typeof data !== "object" || Array.isArray(data)) data = {};
-if (!data.stock || typeof data.stock !== "object") data.stock = {};
-if (!Array.isArray(data.products)) data.products = [];
-if (!data.orders || typeof data.orders !== "object") data.orders = {};
-if (!data.importNameRules || typeof data.importNameRules !== "object") data.importNameRules = {};
-data.products.forEach(p => { if (!p.location) p.location = "none"; });
+if (!data || typeof data !== "object" || Array.isArray(data)) {
+  data = {};
+}
+
+if (!data.stock || typeof data.stock !== "object") {
+  data.stock = {};
+}
+
+if (!Array.isArray(data.products)) {
+  data.products = [];
+}
+
+if (!data.orders || typeof data.orders !== "object") {
+  data.orders = {};
+}
+
+if (!data.importNameRules || typeof data.importNameRules !== "object") {
+  data.importNameRules = {};
+}
+
+if (!data.importStyleRules || typeof data.importStyleRules !== "object" || Array.isArray(data.importStyleRules)) {
+  data.importStyleRules = {};
+}
+
+data.products.forEach(p => {
+  if (!p.location) p.location = "none";
+});
 
 function save() {
   localStorage.setItem(KEY, JSON.stringify(data));
 }
 
 function id() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  return Date.now().toString(36) +
+    Math.random().toString(36).slice(2);
 }
 
 function safe(value) {
   return String(value ?? "").replace(/[&<>"']/g, c => ({
-    "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
   })[c]);
 }
 
@@ -47,25 +73,43 @@ function num(value) {
 }
 
 function typeOptions() {
-  return TYPES.map(t => `<option value="${safe(t[0])}">${safe(t[0])}</option>`).join("");
+  return TYPES.map(t =>
+    `<option value="${safe(t[0])}">${safe(t[0])}</option>`
+  ).join("");
 }
 
 document.querySelector("#productType").innerHTML = typeOptions();
 document.querySelector("#filterType").innerHTML += typeOptions();
 
+// ==========================
 // 頁面切換
+// ==========================
+
 document.querySelectorAll(".tab").forEach(button => {
   button.onclick = () => {
-    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(b =>
+      b.classList.remove("active")
+    );
+
+    document.querySelectorAll(".page").forEach(p =>
+      p.classList.remove("active")
+    );
+
     button.classList.add("active");
-    document.getElementById(button.dataset.page).classList.add("active");
+
+    document.getElementById(
+      button.dataset.page
+    ).classList.add("active");
+
     renderOrders();
     renderProducts();
   };
 });
 
+// ==========================
 // 第一頁：庫存盤點
+// ==========================
+
 function renderStock() {
   const tbody = document.querySelector("#stockTable");
   const headerRow = tbody.closest("table")?.querySelector("thead tr");
@@ -73,18 +117,32 @@ function renderStock() {
   if (headerRow) {
     headerRow.innerHTML = `
       <th>啤酒類型</th>
-      <th>冰箱現有<br>（排）</th>
-      <th>櫃子現有<br>（排）</th>
+      <th>冰箱現有（排）</th>
+      <th>櫃子現有（排）</th>
     `;
   }
 
   tbody.innerHTML = TYPES.map(([type]) => {
-    const stock = data.stock[type] || { fridge: 0, cabinet: 0 };
+    const stock = data.stock[type] || {
+      fridge: 0,
+      cabinet: 0
+    };
+
     return `
       <tr data-type="${safe(type)}">
         <td>${safe(type)}</td>
-        <td><input class="fridge" type="number" min="0" inputmode="numeric" value="${num(stock.fridge)}"></td>
-        <td><input class="cabinet" type="number" min="0" inputmode="numeric" value="${num(stock.cabinet)}"></td>
+        <td>
+          <input class="fridge"
+            type="number" min="0"
+            inputmode="numeric"
+            value="${num(stock.fridge)}">
+        </td>
+        <td>
+          <input class="cabinet"
+            type="number" min="0"
+            inputmode="numeric"
+            value="${num(stock.cabinet)}">
+        </td>
       </tr>
     `;
   }).join("");
@@ -97,28 +155,34 @@ document.querySelector("#saveStock").onclick = () => {
       cabinet: num(row.querySelector(".cabinet").value)
     };
   });
+
   save();
   alert("庫存已儲存");
   renderOrders();
 };
 
-// 新增供應商欄位
+// ==========================
+// 新增商品
+// ==========================
+
 document.querySelector("#addVendor").onclick = () => {
   const input = document.createElement("input");
   input.className = "vendor";
   input.placeholder = "供應商名稱";
   input.required = true;
+
   document.querySelector("#vendorInputs").append(input);
 };
 
-// 新增商品
 document.querySelector("#addForm").onsubmit = event => {
   event.preventDefault();
 
   const name = document.querySelector("#productName").value.trim();
   const type = document.querySelector("#productType").value;
+
   const vendors = [...document.querySelectorAll(".vendor")]
-    .map(input => input.value.trim()).filter(Boolean);
+    .map(input => input.value.trim())
+    .filter(Boolean);
 
   if (!name || !vendors.length) {
     alert("請填寫商品名稱與供應商");
@@ -136,22 +200,31 @@ document.querySelector("#addForm").onsubmit = event => {
 
   save();
   event.target.reset();
+
   document.querySelector("#vendorInputs").innerHTML =
     '<input class="vendor" required placeholder="供應商名稱">';
 
   renderProducts();
   renderOrders();
+
   alert("商品新增成功");
 };
 
-// 第二頁：商品資料搜尋
+// ==========================
+// 第二頁：商品資料
+// ==========================
+
 function renderProducts() {
-  const keyword = (document.querySelector("#searchProduct").value || "").trim().toLowerCase();
+  const keyword = (
+    document.querySelector("#searchProduct").value || ""
+  ).trim().toLowerCase();
+
   const filter = document.querySelector("#filterType").value;
   const container = document.querySelector("#productList");
 
   if (!keyword && !filter) {
-    container.innerHTML = "<p>請輸入商品名稱、供應商，或選擇商品種類後搜尋。</p>";
+    container.innerHTML =
+      "<p>請輸入商品名稱、供應商，或選擇商品種類後搜尋。</p>";
     return;
   }
 
@@ -160,7 +233,9 @@ function renderProducts() {
     (!filter || p.type === filter) &&
     (
       (p.name || "").toLowerCase().includes(keyword) ||
-      (p.vendors || []).some(v => String(v).toLowerCase().includes(keyword))
+      (p.vendors || []).some(v =>
+        String(v).toLowerCase().includes(keyword)
+      )
     )
   );
 
@@ -171,27 +246,43 @@ function renderProducts() {
 
   container.innerHTML = products.map(p => {
     const location = p.location || "none";
+
     return `
       <div class="card">
         <h3>${safe(p.name)}</h3>
         <p>類型：${safe(p.type)}</p>
         <p>供應商：${safe((p.vendors || []).join("、"))}</p>
+
         <label>是否有貨</label>
-        <select class="productLocation" data-product-id="${safe(p.id)}">
-          <option value="none" ${location === "none" ? "selected" : ""}>無</option>
-          <option value="fridge" ${location === "fridge" ? "selected" : ""}>冰箱</option>
-          <option value="cabinet" ${location === "cabinet" ? "selected" : ""}>櫃子</option>
+        <select class="productLocation"
+          data-product-id="${safe(p.id)}">
+          <option value="none"
+            ${location === "none" ? "selected" : ""}>無</option>
+          <option value="fridge"
+            ${location === "fridge" ? "selected" : ""}>冰箱</option>
+          <option value="cabinet"
+            ${location === "cabinet" ? "selected" : ""}>櫃子</option>
         </select>
-        <button onclick="editVendors('${safe(p.id)}')">編輯供應商</button>
-        <button onclick="disableProduct('${safe(p.id)}')">停用商品</button>
+
+        <button onclick="editVendors('${safe(p.id)}')">
+          編輯供應商
+        </button>
+
+        <button onclick="disableProduct('${safe(p.id)}')">
+          停用商品
+        </button>
       </div>
     `;
   }).join("");
 
   container.querySelectorAll(".productLocation").forEach(select => {
     select.onchange = () => {
-      const product = data.products.find(p => p.id === select.dataset.productId);
+      const product = data.products.find(
+        p => p.id === select.dataset.productId
+      );
+
       if (!product) return;
+
       product.location = select.value;
       save();
       renderProducts();
@@ -203,7 +294,6 @@ function renderProducts() {
 document.querySelector("#searchProduct").oninput = renderProducts;
 document.querySelector("#filterType").onchange = renderProducts;
 
-// 編輯供應商
 function editVendors(productId) {
   const product = data.products.find(p => p.id === productId);
   if (!product) return;
@@ -216,7 +306,9 @@ function editVendors(productId) {
   if (result === null) return;
 
   product.vendors = [...new Set(
-    result.split(/[,，]/).map(v => v.trim()).filter(Boolean)
+    result.split(/[,，]/)
+      .map(v => v.trim())
+      .filter(Boolean)
   )];
 
   save();
@@ -224,7 +316,6 @@ function editVendors(productId) {
   renderOrders();
 }
 
-// 停用商品
 function disableProduct(productId) {
   const product = data.products.find(p => p.id === productId);
   if (!product) return;
@@ -237,14 +328,17 @@ function disableProduct(productId) {
   }
 }
 
-// 可叫貨商品
+// ==========================
+// 第三頁：叫貨建議
+// ==========================
+
 function getAvailableProducts() {
   return data.products.filter(
-    p => p.active !== false && (p.location || "none") === "none"
+    p => p.active !== false &&
+    (p.location || "none") === "none"
   );
 }
 
-// 第三頁：可叫貨品項總覽
 function renderOrders() {
   const container = document.querySelector("#orderList");
   if (!container) return;
@@ -253,10 +347,19 @@ function renderOrders() {
   const html = [];
 
   TYPES.forEach(([type, fridgeTarget, cabinetTarget]) => {
-    const stock = data.stock[type] || { fridge: 0, cabinet: 0 };
+    const stock = data.stock[type] || {
+      fridge: 0,
+      cabinet: 0
+    };
 
-    const fridgeDeficit = Math.max(0, fridgeTarget - num(stock.fridge));
-    const cabinetDeficit = Math.max(0, cabinetTarget - num(stock.cabinet));
+    const fridgeDeficit = Math.max(
+      0, fridgeTarget - num(stock.fridge)
+    );
+
+    const cabinetDeficit = Math.max(
+      0, cabinetTarget - num(stock.cabinet)
+    );
+
     const totalDeficit = fridgeDeficit + cabinetDeficit;
 
     const products = available.filter(p => p.type === type);
@@ -276,7 +379,8 @@ function renderOrders() {
       .map(vendor => `
         <div class="vendorGroup">
           <strong>${safe(vendor)}</strong>
-          <p>${vendorGroups[vendor].map(name => safe(name)).join("、")}</p>
+          <p>${vendorGroups[vendor]
+            .map(name => safe(name)).join("、")}</p>
         </div>
       `).join("");
 
@@ -294,13 +398,18 @@ function renderOrders() {
     : "<p>目前沒有可叫貨的商品。</p>";
 }
 
-// 匯出可叫貨品項 CSV
 document.querySelector("#exportOrders").onclick = () => {
-  const rows = [["啤酒類型", "建議叫貨排數", "供應商", "商品名稱"]];
+  const rows = [
+    ["啤酒類型", "建議叫貨排數", "供應商", "商品名稱"]
+  ];
+
   const available = getAvailableProducts();
 
   TYPES.forEach(([type, fridgeTarget, cabinetTarget]) => {
-    const stock = data.stock[type] || { fridge: 0, cabinet: 0 };
+    const stock = data.stock[type] || {
+      fridge: 0,
+      cabinet: 0
+    };
 
     const totalDeficit =
       Math.max(0, fridgeTarget - num(stock.fridge)) +
@@ -308,7 +417,12 @@ document.querySelector("#exportOrders").onclick = () => {
 
     available.filter(p => p.type === type).forEach(product => {
       [...new Set(product.vendors || [])].forEach(vendor => {
-        rows.push([type, totalDeficit, vendor, product.name]);
+        rows.push([
+          type,
+          totalDeficit,
+          vendor,
+          product.name
+        ]);
       });
     });
   });
@@ -338,7 +452,10 @@ document.querySelector("#exportOrders").onclick = () => {
   URL.revokeObjectURL(url);
 };
 
+// ==========================
 // 商品清單匯出／匯入
+// ==========================
+
 function downloadJSON(content, filename) {
   const blob = new Blob(
     [JSON.stringify(content, null, 2)],
@@ -389,7 +506,8 @@ document.querySelector("#exportProducts").onclick = () => {
     format: "abv-product-list",
     version: 2,
     products: data.products,
-    classificationRules: data.importNameRules
+    classificationRules: data.importNameRules,
+    styleRules: data.importStyleRules
   }, "ABV商品清單.json");
 };
 
@@ -427,7 +545,9 @@ document.querySelector("#importProducts").onclick = () => {
     }));
 
     const importedRules =
-      parsed && !Array.isArray(parsed) && parsed.classificationRules;
+      parsed && !Array.isArray(parsed)
+        ? parsed.classificationRules
+        : null;
 
     if (
       importedRules &&
@@ -445,6 +565,26 @@ document.querySelector("#importProducts").onclick = () => {
       });
     }
 
+    const importedStyles =
+      parsed && !Array.isArray(parsed)
+        ? parsed.styleRules
+        : null;
+
+    if (
+      importedStyles &&
+      typeof importedStyles === "object" &&
+      !Array.isArray(importedStyles)
+    ) {
+      Object.entries(importedStyles).forEach(([key, type]) => {
+        if (
+          typeof type === "string" &&
+          TYPES.some(t => t[0] === type)
+        ) {
+          data.importStyleRules[key] = type;
+        }
+      });
+    }
+
     save();
     renderProducts();
     renderOrders();
@@ -453,7 +593,10 @@ document.querySelector("#importProducts").onclick = () => {
   });
 };
 
-// 批次匯入：商品分類猜測、逐筆修正與確認匯入
+// ==========================
+// 批次匯入：智慧學習
+// ==========================
+
 let pendingBulk = [];
 
 function normalizeProductName(value) {
@@ -463,117 +606,167 @@ function normalizeProductName(value) {
     .trim();
 }
 
-function inferType(productName, sourceType) {
-  const name = String(productName || "").toLowerCase();
-  const source = String(sourceType || "").toLowerCase();
-  const combined = `${name} ${source}`;
+function normalizeStyle(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .trim();
+}
 
-  // 曾經人工確認過的分類優先
-  const learned = data.importNameRules[
-    normalizeProductName(productName)
-  ];
+function styleRuleKey(supplier, sourceType) {
+  return normalizeStyle(supplier) +
+    "::" +
+    normalizeStyle(sourceType);
+}
 
-  if (learned && TYPES.some(t => t[0] === learned)) {
+// ==========================
+// 智慧分類核心
+// ==========================
+
+function inferType(productName, sourceType, supplier, volume, canNote) {
+  const combined = `${productName} ${sourceType}`.toLowerCase();
+
+  const valid = type =>
+    TYPES.some(t => t[0] === type);
+
+  const learned =
+    data.importNameRules[normalizeProductName(productName)];
+
+  const styleKey = styleRuleKey(supplier, sourceType);
+  const learnedStyle = data.importStyleRules[styleKey];
+
+  // 包裝規則優先
+  if (volume === 750) {
+    return {
+      type: "大瓶",
+      reason: "750ml → 大瓶（固定規則）"
+    };
+  }
+
+  if (canNote) {
+    return {
+      type: "鋁罐",
+      reason: "供應商註明罐裝 → 鋁罐（固定規則）"
+    };
+  }
+
+  // 第一層：曾確認的商品
+  if (learned && valid(learned)) {
     return {
       type: learned,
-      reason: "曾確認過的商品分類"
+      reason: "曾人工確認的商品分類"
     };
   }
 
-  if (/慕尼黑|munich|德式|德國|german|巴伐利亞|bavarian/.test(combined)) {
+  // 第二層：供應商風格學習
+  if (sourceType && learnedStyle && valid(learnedStyle)) {
     return {
-      type: "德式",
-      reason: "名稱含德式／德國風格提示"
+      type: learnedStyle,
+      reason: "已學習此供應商的風格分類"
     };
   }
 
-  if (/英式|英國|british|english/.test(combined)) {
-    return {
-      type: "英式",
-      reason: "名稱含英式提示"
-    };
-  }
+  // 第三層：風格關鍵字
+  // 複合風格放前面，避免被一般風格覆蓋
+  const rules = [
+    [
+      /比利時.{0,8}(金黃強|黃金強)|金黃強.{0,6}(愛爾|艾爾)|belgian.{0,12}strong golden/,
+      "金黃強"
+    ],
+    [
+      /比利時.{0,8}(黃金|金色).{0,5}(愛爾|艾爾)|比利時黃金|belgian golden ale/,
+      "黃金"
+    ],
+    [
+      /比利時.{0,8}(雙倍|dubbel)|belgian dubbel/,
+      "雙倍"
+    ],
+    [
+      /比利時.{0,8}(三倍|tripel)|belgian tripel/,
+      "三倍"
+    ],
+    [
+      /比利時.{0,8}(四倍|quadrupel|quad)|belgian quadrupel/,
+      "四倍"
+    ],
+    [
+      /比利時.{0,8}(強黑|深色烈性)|belgian dark strong|belgian strong dark/,
+      "強黑"
+    ],
+    [
+      /西打酒|蘋果酒|\bcider\b|水果白啤酒|水果白啤/,
+      "水果"
+    ],
+    [
+      /勃克|博克|\bbock\b|doppelbock|eisbock|蘇格蘭|蘇格蘭愛爾|scottish|scotch ale|wee heavy|\bscotch\b/,
+      "勃克&蘇格蘭"
+    ],
+    [
+      /慕尼黑|munich|德式|德國|german|巴伐利亞|bavarian/,
+      "德式"
+    ],
+    [
+      /英式|英國|british|english/,
+      "英式"
+    ],
+    [
+      /捷克皮爾森|皮爾森|pilsner|pilsener/,
+      "皮爾森"
+    ],
+    [
+      /柏林小麥|berliner weisse/,
+      "其他"
+    ],
+    [
+      /酸啤|酸艾爾|\bsour\b|\bgose\b/,
+      "酸"
+    ],
+    [
+      /斯陶特|司陶特|世濤|stout/,
+      "司陶特"
+    ],
+    [
+      /波特|porter/,
+      "波特"
+    ],
+    [
+      /淡愛爾|淡艾爾|美式淡愛爾|美式淡艾爾|pale ale|\bipa\b/,
+      "IPA&PA"
+    ],
+    [
+      /小麥|白啤|weizen|witbier|wheat/,
+      "白"
+    ],
+    [
+      /拉格|lager/,
+      "拉格"
+    ],
+    [
+      /比利時|belgian|修道院|trappist/,
+      "比利時"
+    ],
+    [
+      /水果|fruit|果啤/,
+      "水果"
+    ],
+    [
+      /無酒精|0度|non.?alcohol|alcohol.?free/,
+      "其他"
+    ]
+  ];
 
-  if (/捷克皮爾森|皮爾森|pilsner|pilsener/.test(combined)) {
-    return {
-      type: "皮爾森",
-      reason: "名稱含皮爾森提示"
-    };
-  }
-
-  if (/柏林小麥|berliner weisse/.test(combined)) {
-    return {
-      type: "其他",
-      reason: "此風格可能對應多種內部分類，先待人工確認"
-    };
-  }
-
-  if (/ipa|淡艾爾|pale ale/.test(combined)) {
-    return {
-      type: "IPA&PA",
-      reason: "名稱含 IPA／淡艾爾提示"
-    };
-  }
-
-  if (/酸啤|酸|sour|gose|酸艾爾/.test(combined)) {
-    return {
-      type: "酸",
-      reason: "名稱含酸啤提示"
-    };
-  }
-
-  if (/小麥|白啤|weizen|witbier|wheat/.test(combined)) {
-    return {
-      type: "白",
-      reason: "名稱含小麥／白啤提示"
-    };
-  }
-
-  if (/拉格|lager/.test(combined)) {
-    return {
-      type: "拉格",
-      reason: "名稱含拉格提示，請確認是否屬德式等其他類型"
-    };
-  }
-
-  if (/波特|porter/.test(combined)) {
-    return {
-      type: "波特",
-      reason: "名稱含波特提示"
-    };
-  }
-
-  if (/司陶特|stout/.test(combined)) {
-    return {
-      type: "司陶特",
-      reason: "名稱含司陶特提示"
-    };
-  }
-
-  if (/比利時|belgian|修道院|trappist/.test(combined)) {
-    return {
-      type: "比利時",
-      reason: "名稱含比利時風格提示"
-    };
-  }
-
-  if (/水果|fruit|果啤/.test(combined)) {
-    return {
-      type: "水果",
-      reason: "名稱含水果啤酒提示"
-    };
-  }
-
-  if (/無酒精|0度|non.?alcohol|alcohol.?free/.test(combined)) {
-    return {
-      type: "其他",
-      reason: "無酒精類先歸其他，請確認"
-    };
+  for (const [pattern, type] of rules) {
+    if (pattern.test(combined)) {
+      return {
+        type,
+        reason: `風格關鍵字推測：${type}（可修改）`
+      };
+    }
   }
 
   return {
     type: "其他",
-    reason: "沒有明確分類線索，請人工選擇"
+    reason: "無明確分類線索，請人工確認"
   };
 }
 
@@ -586,7 +779,10 @@ function getBulkTypeOptions(selected) {
   `).join("");
 }
 
-// 從供應商複製的資料中提取名稱與類型
+// ==========================
+// 解析供應商資料
+// ==========================
+
 function splitSupplierLine(line) {
   const trimmed = String(line || "").trim();
   if (!trimmed) return null;
@@ -594,7 +790,7 @@ function splitSupplierLine(line) {
   let columns = trimmed
     .split(/\t+/)
     .map(v => v.trim())
-    .filter(v => v !== "");
+    .filter(Boolean);
 
   if (columns.length < 2) {
     columns = trimmed
@@ -606,16 +802,28 @@ function splitSupplierLine(line) {
   if (!columns.length) return null;
 
   const name = columns[0];
-  let sourceType = columns[1] || "";
+  const sourceType = columns[1] || "";
 
-  if (
-    /酒水\s*[-－]\s*啤酒|啤酒類|beer/i.test(sourceType) &&
-    columns[2]
-  ) {
-    sourceType = columns[2];
-  }
+  const all = columns.join(" ");
 
-  return { name, sourceType };
+  // 擷取容量：750ml、750 ml、750毫升
+  const match = all.match(
+    /(?:^|[^\d])(\d{2,4})\s*(?:ml|毫升|㏄|cc)(?![a-z])/i
+  );
+
+  const volume = match ? Number(match[1]) : null;
+
+  // 供應商備註或單位標示罐裝
+  const canNote = columns.slice(1).some(c =>
+    /罐|can(?:ned)?/i.test(c)
+  );
+
+  return {
+    name,
+    sourceType,
+    volume,
+    canNote
+  };
 }
 
 function existingProductByName(name) {
@@ -627,7 +835,10 @@ function existingProductByName(name) {
   ) || null;
 }
 
-// 顯示待確認商品
+// ==========================
+// 批次匯入檢視卡片
+// ==========================
+
 function renderBulkReview() {
   const review = document.querySelector("#bulkReview");
   const confirmArea = document.querySelector("#bulkConfirmArea");
@@ -642,24 +853,30 @@ function renderBulkReview() {
     `<h3>請逐筆檢視（${pendingBulk.length} 筆）</h3>` +
     pendingBulk.map((item, index) => {
       const duplicate = existingProductByName(item.name);
-      const duplicateAction = item.action ||
-        (duplicate ? "merge" : "new");
+
+      const duplicateAction =
+        item.action || (duplicate ? "merge" : "new");
 
       const matchLabel = duplicate
-        ? `找到既有商品：${safe(duplicate.name)}（可加入供應商）`
+        ? `找到既有商品：${safe(duplicate.name)}（將加入供應商）`
         : "尚未找到完全相同的商品";
 
       return `
-        <article class="bulk-review-card" data-bulk-index="${index}">
+        <article class="bulk-review-card"
+          data-bulk-index="${index}">
+
           <div class="bulk-card-top">
             <span class="bulk-index">
               商品 ${index + 1} / ${pendingBulk.length}
             </span>
-            <span class="muted">${safe(item.reason || "請確認分類")}</span>
+            <span class="muted">
+              ${safe(item.reason || "請確認分類")}
+            </span>
           </div>
 
           <div class="bulk-select-row">
-            <input type="checkbox" class="bulk-include"
+            <input type="checkbox"
+              class="bulk-include"
               ${item.include ? "checked" : ""}
               aria-label="選擇匯入此商品">
             <strong>納入本次匯入</strong>
@@ -673,6 +890,9 @@ function renderBulkReview() {
           <div class="raw-type">
             供應商原始種類：
             ${safe(item.sourceType || "（未提供）")}
+            ｜容量：
+            ${item.volume ? safe(item.volume + "ml") : "未標示"}
+            ${item.canNote ? "｜供應商註明罐裝" : ""}
           </div>
 
           <label>網站分類（下拉選單）</label>
@@ -680,21 +900,38 @@ function renderBulkReview() {
             ${getBulkTypeOptions(item.type)}
           </select>
 
+          <div class="bulk-select-row" style="margin:10px 0">
+            <input type="checkbox"
+              class="bulk-learn-style"
+              ${item.learnStyle ? "checked" : ""}
+              ${!item.sourceType ? "disabled" : ""}>
+
+            <span>
+              記住此供應商的「${safe(item.sourceType || "未提供風格")}」
+              分類（選填）
+            </span>
+          </div>
+
           <div class="bulk-action">
             <label>匯入方式</label>
             <div class="muted">${matchLabel}</div>
+
             <select class="bulk-action-select"
               ${duplicate ? "" : "disabled"}>
+
               <option value="new"
                 ${duplicateAction === "new" ? "selected" : ""}>
                 建立新商品
               </option>
+
               <option value="merge"
                 ${duplicateAction === "merge" ? "selected" : ""}>
                 併入既有商品並加入供應商
               </option>
+
             </select>
           </div>
+
         </article>
       `;
     }).join("");
@@ -718,6 +955,10 @@ function renderBulkReview() {
       pendingBulk[index].type = e.target.value;
     };
 
+    card.querySelector(".bulk-learn-style").onchange = e => {
+      pendingBulk[index].learnStyle = e.target.checked;
+    };
+
     card.querySelector(".bulk-action-select").onchange = e => {
       pendingBulk[index].action = e.target.value;
     };
@@ -733,10 +974,16 @@ function updateBulkCount() {
     `已勾選 ${count} 筆商品；匯入前會再次檢查重複商品。`;
 }
 
-// 解析貼上的資料
+// ==========================
+// 整理並檢視商品
+// ==========================
+
 document.querySelector("#parseBulk").onclick = () => {
-  const supplier = document.querySelector("#bulkSupplier").value.trim();
-  const raw = document.querySelector("#bulkText").value;
+  const supplier =
+    document.querySelector("#bulkSupplier").value.trim();
+
+  const raw =
+    document.querySelector("#bulkText").value;
 
   if (!supplier) {
     alert("請先輸入供應商名稱。");
@@ -759,15 +1006,23 @@ document.querySelector("#parseBulk").onclick = () => {
   }
 
   pendingBulk = parsed.map(item => {
-    const suggestion = inferType(item.name, item.sourceType);
+    const suggestion = inferType(
+      item.name,
+      item.sourceType,
+      supplier,
+      item.volume,
+      item.canNote
+    );
 
     return {
-      name: item.name,
-      sourceType: item.sourceType,
+      ...item,
       type: suggestion.type,
       reason: suggestion.reason,
       include: true,
-      action: existingProductByName(item.name) ? "merge" : "new"
+      learnStyle: false,
+      action: existingProductByName(item.name)
+        ? "merge"
+        : "new"
     };
   });
 
@@ -779,7 +1034,10 @@ document.querySelector("#parseBulk").onclick = () => {
   });
 };
 
-// 取消檢視
+// ==========================
+// 取消批次檢視
+// ==========================
+
 document.querySelector("#cancelBulk").onclick = () => {
   if (
     pendingBulk.length &&
@@ -790,9 +1048,13 @@ document.querySelector("#cancelBulk").onclick = () => {
   renderBulkReview();
 };
 
+// ==========================
 // 確認批次匯入
+// ==========================
+
 document.querySelector("#confirmBulk").onclick = () => {
-  const supplier = document.querySelector("#bulkSupplier").value.trim();
+  const supplier =
+    document.querySelector("#bulkSupplier").value.trim();
 
   const selected = pendingBulk.filter(item =>
     item.include && item.name.trim()
@@ -811,6 +1073,27 @@ document.querySelector("#confirmBulk").onclick = () => {
   if (!confirm(
     `即將處理 ${selected.length} 筆商品。\n\n商品名稱與分類會依你在檢視畫面確認的內容匯入；庫存不會改變。\n\n確定匯入？`
   )) return;
+
+  // 同一供應商的相同風格，不允許同批學習成不同分類
+  const newStyleRules = {};
+
+  for (const item of selected) {
+    if (!item.learnStyle || !item.sourceType) continue;
+
+    const key = styleRuleKey(supplier, item.sourceType);
+
+    if (
+      newStyleRules[key] &&
+      newStyleRules[key] !== item.type
+    ) {
+      alert(
+        `「${item.sourceType}」在本批次選了不同分類，請取消部分「記住風格」勾選後再匯入。`
+      );
+      return;
+    }
+
+    newStyleRules[key] = item.type;
+  }
 
   let added = 0;
   let merged = 0;
@@ -844,7 +1127,7 @@ document.querySelector("#confirmBulk").onclick = () => {
         id: id(),
         name,
         type: item.type,
-        vendors: [supplier],
+        vendors: supplier ? [supplier] : [],
         active: true,
         location: "none"
       });
@@ -852,6 +1135,9 @@ document.querySelector("#confirmBulk").onclick = () => {
       added++;
     }
   });
+
+  // 儲存使用者勾選的風格學習紀錄
+  Object.assign(data.importStyleRules, newStyleRules);
 
   save();
 
@@ -867,7 +1153,10 @@ document.querySelector("#confirmBulk").onclick = () => {
   );
 };
 
+// ==========================
 // 啟動網站
+// ==========================
+
 renderStock();
 renderProducts();
 renderOrders();
