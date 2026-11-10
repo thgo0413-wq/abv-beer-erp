@@ -1967,3 +1967,359 @@ try {
     renderBulkReview();
   }
 } catch {}
+
+
+/*
+ ABV 智慧分類升級
+ 適用：目前已正常運作的整合版 app.js
+ 使用方式：直接貼在 app.js 最底下
+
+ 規則：
+ 1. 750ml 只歸大瓶
+ 2. 500ml 瓶裝：德國製造歸德式，其他歸大瓶
+ 3. 500ml 罐裝：鋁罐優先，可加風格及台灣
+ 4. 黃金、雙倍、三倍、四倍、強黑可辨識簡寫
+ 5. 英式 IPA = 英式 + IPA&PA
+ 6. 指定 12 家供應商自動加入台灣
+*/
+
+(() => {
+  "use strict";
+
+  const TAIWAN_SUPPLIERS = new Set([
+    "啤酒頭",
+    "醉精釀",
+    "紅點",
+    "酉鬼",
+    "德意",
+    "吉姆老爹",
+    "巨人",
+    "福爾摩沙",
+    "金門",
+    "挪亞",
+    "令和",
+    "英和記"
+  ]);
+
+  const STYLES = [
+    [/金黃強|黃金強|strong[\s-]*golden|golden[\s-]*strong/i, "金黃強"],
+    [/黃金|golden[\s-]*ale|blonde[\s-]*ale/i, "黃金"],
+    [/雙倍|dubbel|double[\s-]*abbey/i, "雙倍"],
+    [/三倍|tripel|triple[\s-]*abbey/i, "三倍"],
+    [/四倍|quadrupel|quad(?:ruple)?[\s-]*abbey/i, "四倍"],
+    [/強黑|深色烈性|dark[\s-]*strong|strong[\s-]*dark/i, "強黑"],
+    [/琥珀|amber/i, "琥珀"],
+    [/維也納|vienna/i, "維也納"],
+    [/柏林小麥|berliner[\s-]*weisse|鹽小麥|gose|農舍愛爾|農舍艾爾|farmhouse|季節啤酒|saison|法蘭德斯|酸愛爾|酸艾爾|酸啤|sour/i, "酸"],
+    [/西打酒|蘋果酒|cider|水果白啤/i, "水果"],
+    [/勃克|博克|bock|蘇格蘭|scottish|scotch[\s-]*ale|wee[\s-]*heavy/i, "勃克&蘇格蘭"],
+    [/英式|英國風格|british[\s-]*(?:style|ale|ipa)|english[\s-]*(?:style|ale|ipa)/i, "英式"],
+    [/皮爾森|pilsner|pilsener/i, "皮爾森"],
+    [/斯陶特|司陶特|世濤|stout/i, "司陶特"],
+    [/波特|porter/i, "波特"],
+    [/淡愛爾|淡艾爾|pale[\s-]*ale|\bipa\b|neipa|dipa/i, "IPA&PA"],
+    [/小麥|白啤|weizen|witbier|wheat/i, "白"],
+    [/拉格|lager/i, "拉格"],
+    [/比利時|belgian|修道院|trappist/i, "比利時"],
+    [/水果|fruit|果啤/i, "水果"]
+  ];
+
+  const GERMAN_ORIGIN =
+    /德國製造|德國生產|德國原產|德製|產地\s*[:：]?\s*德國|原產地\s*[:：]?\s*德國|made\s+in\s+germany|brewed\s+in\s+germany|product\s+of\s+germany/i;
+
+  const TAIWAN_ORIGIN =
+    /台灣製造|臺灣製造|台灣生產|臺灣生產|台灣釀造|臺灣釀造|產地\s*[:：]?\s*(?:台灣|臺灣)|原產地\s*[:：]?\s*(?:台灣|臺灣)|made\s+in\s+taiwan|brewed\s+in\s+taiwan|product\s+of\s+taiwan/i;
+
+  const isTaiwanSupplier = supplier =>
+    TAIWAN_SUPPLIERS.has(
+      String(supplier || "")
+        .replace(/[\s　]+/g, "")
+        .trim()
+    );
+
+  function getOrigin(item, supplier) {
+    const text = [
+      item.name,
+      item.sourceType,
+      item.originNote
+    ].join(" ");
+
+    if (GERMAN_ORIGIN.test(text)) {
+      return "germany";
+    }
+
+    if (
+      TAIWAN_ORIGIN.test(text) ||
+      isTaiwanSupplier(supplier)
+    ) {
+      return "taiwan";
+    }
+
+    return null;
+  }
+
+  function getStyles(item, supplier) {
+    const result = [];
+
+    const add = type => {
+      if (
+        VALID_TYPES.includes(type) &&
+        !["鋁罐", "大瓶", "德式", "台灣", "其他"].includes(type) &&
+        !result.includes(type)
+      ) {
+        result.push(type);
+      }
+    };
+
+    let matched = false;
+
+    for (const text of [
+      String(item.sourceType || ""),
+      String(item.name || "")
+    ]) {
+      for (const [regex, type] of STYLES) {
+        if (regex.test(text)) {
+          add(type);
+          matched = true;
+          break;
+        }
+      }
+
+      if (matched) break;
+    }
+
+    if (!matched) {
+      add(data.importStyleRules[
+        styleRuleKey(supplier, item.sourceType)
+      ]);
+
+      if (!result.length) {
+        add(data.importNameRules[
+          normalizeProductName(item.name)
+        ]);
+      }
+    }
+
+    const combined = [
+      item.name,
+      item.sourceType
+    ].join(" ");
+
+    const english =
+      /英式|英國風格|british[\s-]*(?:style|ale|ipa)|english[\s-]*(?:style|ale|ipa)/i
+        .test(combined);
+
+    const ipa =
+      /\bipa\b|淡愛爾|淡艾爾|pale[\s-]*ale/i
+        .test(combined);
+
+    if (english && ipa) {
+      if (!result.includes("英式")) {
+        result.unshift("英式");
+      }
+
+      add("IPA&PA");
+    }
+
+    return result;
+  }
+
+  function classify(item, supplier) {
+    const volume = item.volume;
+    const isCan = !!item.canNote;
+    const origin = getOrigin(item, supplier);
+
+    // 750ml 永遠只有大瓶
+    if (volume === 750) {
+      return {
+        types: ["大瓶"],
+        reason: "750ml 固定只歸大瓶"
+      };
+    }
+
+    // 500ml 非罐裝
+    if (volume === 500 && !isCan) {
+      if (origin === "germany") {
+        return {
+          types: ["德式"],
+          reason: "500ml 德國製造瓶裝"
+        };
+      }
+
+      return {
+        types: origin === "taiwan"
+          ? ["大瓶", "台灣"]
+          : ["大瓶"],
+        reason: origin === "taiwan"
+          ? "500ml 瓶裝＋台灣供應商"
+          : "500ml 瓶裝，非已確認德製"
+      };
+    }
+
+    const types = isCan ? ["鋁罐"] : [];
+
+    getStyles(item, supplier).forEach(type => {
+      if (!types.includes(type)) {
+        types.push(type);
+      }
+    });
+
+    // 德式分類只限 500ml
+    if (
+      volume === 500 &&
+      origin === "germany" &&
+      !types.includes("德式")
+    ) {
+      types.push("德式");
+    }
+
+    if (
+      origin === "taiwan" &&
+      !types.includes("台灣")
+    ) {
+      types.push("台灣");
+    }
+
+    if (!types.length) {
+      types.push("其他");
+    }
+
+    return {
+      types,
+      reason: "新版智慧風格、容量及供應商分類"
+    };
+  }
+
+  function parseLine(line) {
+    const text = String(line || "").trim();
+    if (!text) return null;
+
+    let columns = text
+      .split(/\t+/)
+      .map(x => x.trim())
+      .filter(Boolean);
+
+    if (columns.length < 2) {
+      columns = text
+        .split(/\s{2,}/)
+        .map(x => x.trim())
+        .filter(Boolean);
+    }
+
+    if (!columns.length) return null;
+
+    const fullText = columns.join(" ");
+
+    const match = fullText.match(
+      /(?:^|[^\d])(\d{2,4})\s*(?:ml|毫升|㏄|cc)(?![a-z])/i
+    );
+
+    return {
+      name: columns[0],
+      sourceType: columns[1] || "",
+      volume: match ? Number(match[1]) : null,
+      canNote: columns.slice(1).some(x =>
+        /罐|can(?:ned)?/i.test(x)
+      ),
+      originNote: columns.slice(2).join(" ")
+    };
+  }
+
+  const button = document.querySelector("#parseBulk");
+
+  if (!button) {
+    console.error("ABV：找不到批次匯入按鈕");
+    return;
+  }
+
+  button.onclick = () => {
+    const supplier =
+      document.querySelector("#bulkSupplier").value.trim();
+
+    const raw =
+      document.querySelector("#bulkText").value;
+
+    if (!supplier || !raw.trim()) {
+      alert("請先填寫供應商並貼上商品清單。");
+      return;
+    }
+
+    if (
+      pendingBulk.length &&
+      !confirm(
+        "目前有尚未匯入的草稿，確定重新整理？"
+      )
+    ) {
+      return;
+    }
+
+    const parsed = raw
+      .split(/\r?\n/)
+      .map(parseLine)
+      .filter(item => item?.name)
+      .map(item => {
+        const prefix =
+          item.volume === 500 ? "50" :
+          item.volume === 750 ? "75" : "";
+
+        return {
+          ...item,
+          name:
+            prefix && !item.name.startsWith(prefix)
+              ? prefix + item.name
+              : item.name
+        };
+      });
+
+    if (!parsed.length) {
+      alert("沒有辨識到商品資料。");
+      return;
+    }
+
+    pendingBulk = parsed.map(item => {
+      const suggestion = classify(item, supplier);
+      const types = [...suggestion.types];
+
+      const existing = existingProductByName(item.name);
+
+      // 一般商品合併時保留既有分類。
+      // 750ml、500ml 瓶裝則不在檢視階段
+      // 自動追加違反容量規則的舊分類。
+      if (
+        existing &&
+        item.volume !== 750 &&
+        !(item.volume === 500 && !item.canNote)
+      ) {
+        getTypes(existing).forEach(type => {
+          if (
+            (type !== "德式" || item.volume === 500) &&
+            !types.includes(type)
+          ) {
+            types.push(type);
+          }
+        });
+      }
+
+      return {
+        ...item,
+        type: types[0],
+        types,
+        reason: suggestion.reason,
+        include: true,
+        learnStyle: false,
+        action: existing ? "merge" : "new"
+      };
+    });
+
+    persistBulk();
+    renderBulkReview();
+
+    document.querySelector("#bulkReview")
+      .scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+  };
+
+  console.log("ABV 台灣供應商智慧分類已啟用");
+})();
