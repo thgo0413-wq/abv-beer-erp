@@ -3212,3 +3212,53 @@ renderOrders();
   );
 
 })();
+
+
+/* ==========================================
+   ABV 商品編輯介面 BUG 修正
+   直接貼在 app.js 最底部
+   ========================================== */
+
+(function () {
+  "use strict";
+
+  // 確保商品資料頁面使用最新版編輯功能
+  function refreshProductEditor() {
+    if (typeof renderProducts !== "function") {
+      return;
+    }
+
+    renderProducts();
+  }
+
+  // 重新綁定搜尋事件，避免使用舊版函式
+  const searchInput =
+    document.querySelector("#searchProduct");
+
+  const typeFilter =
+    document.querySelector("#filterType");
+
+  if (searchInput) {
+    searchInput.oninput = refreshProductEditor;
+  }
+
+  if (typeFilter) {
+    typeFilter.onchange = refreshProductEditor;
+  }
+
+  // 頁面切換後，確保顯示新版商品卡片
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      refreshProductEditor();
+    });
+  });
+
+  // 網頁初次載入時立即更新
+  refreshProductEditor();
+
+  // Safari 從背景恢復時同步畫面
+  window.addEventListener("pageshow", () => {
+    refreshProductEditor();
+  });
+
+})();
